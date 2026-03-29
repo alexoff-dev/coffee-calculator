@@ -1,0 +1,1515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>CoffeeCraft — Professional Brew Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ─── RESET & TOKENS ─────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#ede8de;--card:#fff;--card2:#f5f2ec;
+  --forest:#1d3a18;--leaf:#2d5a1b;--leaf-mid:#4a7c35;--leaf-light:#7faa60;
+  --amber:#b8702a;--amber-light:#d4924e;--amber-pale:#f5e6cf;
+  --text:#1a2412;--text-muted:#637050;--border:#d4cfc3;--border-light:#e5e1d8;
+  --red:#b83228;--red-pale:#fdeaea;--green-ok:#1e7a50;--green-pale:#e6f5ed;
+  --stat-bg:#1d3a18;--stat-val:#a8d080;
+  --shadow:0 2px 12px rgba(29,58,24,.09);
+  --r:14px;--rs:10px;--rm:10px;
+}
+
+/* ─── BASE ───────────────────────────────────────────── */
+html{font-size:16px;-webkit-text-size-adjust:100%}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:'Plus Jakarta Sans',sans-serif;
+  min-height:100vh;overflow-x:hidden;
+  /* subtle texture */
+  background-image:
+    radial-gradient(ellipse at 80% 0%,rgba(45,90,27,.06) 0%,transparent 50%),
+    radial-gradient(ellipse at 0% 100%,rgba(184,112,42,.05) 0%,transparent 50%);
+}
+
+/* ─── HEADER ─────────────────────────────────────────── */
+header{
+  background:var(--forest);color:#fff;
+  padding:.9rem 1rem;
+  padding-top:calc(.9rem + env(safe-area-inset-top));
+  display:flex;align-items:center;gap:.75rem;
+  border-bottom:3px solid var(--amber);
+  position:sticky;top:0;z-index:200;
+}
+.hd-logo{display:flex;align-items:center;gap:.65rem;flex:1}
+.hd-icon{font-size:1.6rem;line-height:1;flex-shrink:0}
+.hd-text{font-family:'Playfair Display',serif;font-size:1.45rem;font-weight:700;white-space:nowrap}
+.hd-text span{color:var(--amber-light)}
+.hd-tag{font-size:.62rem;color:rgba(255,255,255,.45);letter-spacing:.09em;text-transform:uppercase;margin-top:.06rem;white-space:nowrap}
+
+/* ─── TABS ───────────────────────────────────────────── */
+.tab-nav{
+  display:flex;background:var(--forest);
+  padding:0;padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);
+  border-bottom:2px solid rgba(255,255,255,.1);
+  position:sticky;top:calc(3.8rem + env(safe-area-inset-top));z-index:199;
+}
+.tab-btn{
+  flex:1;padding:.72rem .5rem;
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:.82rem;font-weight:600;
+  color:rgba(255,255,255,.5);background:none;border:none;
+  cursor:pointer;
+  border-bottom:3px solid transparent;margin-bottom:-2px;
+  transition:color .18s,border-color .18s;
+  white-space:nowrap;
+  -webkit-tap-highlight-color:transparent;
+  min-height:44px;
+}
+.tab-btn.active{color:#fff;border-bottom-color:var(--amber)}
+
+/* ─── MAIN / TAB CONTENT ─────────────────────────────── */
+main{
+  max-width:1080px;margin:0 auto;
+  padding:1rem .9rem 6rem;
+  padding-left:max(.9rem,env(safe-area-inset-left));
+  padding-right:max(.9rem,env(safe-area-inset-right));
+  padding-bottom:max(6rem,calc(6rem + env(safe-area-inset-bottom)));
+}
+.tab-content{display:none}
+.tab-content.active{display:block}
+
+/* ─── LAYOUT: single-col mobile, 2-col desktop ───────── */
+.layout{display:flex;flex-direction:column;gap:1rem}
+@media(min-width:780px){
+  .layout{display:grid;grid-template-columns:310px 1fr;gap:1.4rem;align-items:start}
+}
+
+/* ─── CARD ───────────────────────────────────────────── */
+.card{
+  background:var(--card);border:1px solid var(--border-light);
+  border-radius:var(--r);padding:1.1rem;box-shadow:var(--shadow);
+  /* prevent children from blowing out card width */
+  min-width:0;overflow:hidden;
+}
+.section-gap{margin-top:1rem}
+
+/* ─── HEADINGS ───────────────────────────────────────── */
+h2{
+  font-family:'Playfair Display',serif;
+  font-size:.98rem;font-weight:600;color:var(--forest);
+  margin-bottom:.8rem;display:flex;align-items:center;gap:.45rem;
+}
+h2::after{content:'';flex:1;height:1px;background:var(--border);margin-left:.45rem}
+
+/* ─── FORM ELEMENTS ──────────────────────────────────── */
+.field{margin-bottom:.8rem}
+.field-label{
+  display:block;font-size:.69rem;font-weight:600;
+  letter-spacing:.07em;text-transform:uppercase;
+  color:var(--text-muted);margin-bottom:.32rem;
+}
+/* iOS: font-size≥16px prevents auto-zoom */
+input[type=number],select,input[type=text]{
+  width:100%;padding:.6rem .78rem;
+  background:var(--card2);border:1.5px solid var(--border);
+  border-radius:var(--rs);
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:1rem;color:var(--text);
+  transition:border-color .18s;
+  -webkit-appearance:none;appearance:none;
+  min-height:44px;
+}
+input:focus,select:focus{
+  outline:none;border-color:var(--leaf-mid);
+  box-shadow:0 0 0 3px rgba(45,90,27,.1);
+}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
+
+/* ─── RADIO / CHECKBOX ───────────────────────────────── */
+.radio-group{display:flex;flex-direction:column;gap:.38rem;margin-top:.3rem}
+.radio-opt{
+  display:flex;align-items:flex-start;gap:.6rem;cursor:pointer;
+  background:var(--card2);border:1.5px solid var(--border);
+  border-radius:var(--rs);padding:.62rem .78rem;
+  transition:border-color .18s,background .18s;
+  -webkit-tap-highlight-color:transparent;min-height:44px;
+}
+.radio-opt:has(input:checked){border-color:var(--leaf-mid);background:rgba(45,90,27,.05)}
+.radio-opt input[type=radio]{margin-top:.22rem;accent-color:var(--leaf);width:16px;height:16px;flex-shrink:0}
+.radio-opt-text{font-size:.85rem;line-height:1.4}
+.radio-opt-text small{display:block;font-size:.72rem;color:var(--amber);margin-top:.12rem}
+.checkbox-opt{
+  display:flex;align-items:flex-start;gap:.6rem;cursor:pointer;
+  background:var(--card2);border:1.5px dashed var(--border);
+  border-radius:var(--rs);padding:.62rem .78rem;
+  transition:border-color .18s;margin-top:.45rem;
+  -webkit-tap-highlight-color:transparent;min-height:44px;
+}
+.checkbox-opt:has(input:checked){border-color:var(--leaf-mid);background:rgba(45,90,27,.04)}
+.checkbox-opt input[type=checkbox]{margin-top:.22rem;accent-color:var(--leaf);width:16px;height:16px;flex-shrink:0}
+.checkbox-opt-text{font-size:.83rem;color:var(--text-muted);line-height:1.4}
+.checkbox-opt-text strong{display:block;font-size:.86rem;color:var(--text);margin-bottom:.08rem}
+
+/* ─── RANGE ──────────────────────────────────────────── */
+.strength-row{display:flex;align-items:center;gap:.65rem}
+.strength-label{font-size:.71rem;color:var(--text-muted);white-space:nowrap}
+input[type=range]{
+  flex:1;-webkit-appearance:none;appearance:none;
+  height:6px;border-radius:3px;min-height:0;
+  background:linear-gradient(to right,var(--leaf-light) 0%,var(--forest) 100%);
+  cursor:pointer;padding:0;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:22px;height:22px;
+  border-radius:50%;background:var(--leaf);
+  border:2.5px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.2);cursor:pointer;
+}
+
+/* ─── BUTTON ─────────────────────────────────────────── */
+.btn{
+  width:100%;padding:.82rem 1rem;
+  background:var(--forest);color:#fff;border:none;
+  border-radius:var(--rs);
+  font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:.95rem;font-weight:600;letter-spacing:.03em;
+  cursor:pointer;transition:background .18s,transform .1s;
+  margin-top:.5rem;min-height:48px;
+  -webkit-tap-highlight-color:transparent;
+}
+.btn:active{transform:scale(.98);background:var(--leaf)}
+
+/* ─── SHOT TOGGLE ────────────────────────────────────── */
+.shot-toggle{display:flex;gap:.4rem;margin-top:.32rem}
+.shot-btn{
+  flex:1;padding:.6rem .5rem;
+  border:1.5px solid var(--border);border-radius:var(--rs);
+  background:var(--card2);color:var(--text-muted);
+  font-size:.85rem;font-weight:500;cursor:pointer;
+  transition:all .15s;text-align:center;
+  font-family:'Plus Jakarta Sans',sans-serif;min-height:44px;
+  -webkit-tap-highlight-color:transparent;
+}
+.shot-btn.active{border-color:var(--leaf-mid);background:rgba(45,90,27,.07);color:var(--forest);font-weight:600}
+
+/* ─── STAT CARDS ─────────────────────────────────────── */
+.rg{display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem;margin-bottom:.85rem}
+@media(min-width:480px){.rg{grid-template-columns:repeat(3,1fr)}}
+.st{
+  background:var(--stat-bg);border-radius:var(--rm);
+  padding:.82rem .7rem;text-align:center;color:#fff;
+  min-width:0;
+}
+.sv{
+  font-family:'Playfair Display',serif;font-size:1.2rem;
+  font-weight:700;color:var(--stat-val);line-height:1.15;
+  word-break:break-all;
+}
+.su{font-size:.64rem;color:rgba(255,255,255,.5);margin-top:.12rem}
+.sl{font-size:.6rem;color:rgba(255,255,255,.42);text-transform:uppercase;letter-spacing:.08em;margin-top:.26rem}
+.w2{grid-column:span 2}.w3{grid-column:span 2}
+@media(min-width:480px){.w3{grid-column:span 3}}
+
+/* ─── RATIO PILL ─────────────────────────────────────── */
+.ratio-pill{
+  display:inline-flex;align-items:center;gap:.35rem;
+  background:var(--amber-pale);border:1.5px solid var(--amber);
+  border-radius:50px;padding:.24rem .75rem;
+  font-family:'Playfair Display',serif;font-size:.9rem;font-weight:600;
+  color:var(--forest);margin-bottom:.85rem;
+}
+.ratio-pill span{color:var(--amber)}
+
+/* ─── INFO BOXES ─────────────────────────────────────── */
+.info-box{
+  background:var(--card2);border:1px solid var(--border-light);
+  border-radius:var(--rm);padding:.75rem .9rem;
+  font-size:.8rem;line-height:1.6;color:var(--text);margin-top:.65rem;
+  word-wrap:break-word;overflow-wrap:break-word;
+}
+.info-box .box-label{
+  display:block;font-size:.68rem;text-transform:uppercase;
+  letter-spacing:.07em;color:var(--leaf-mid);margin-bottom:.22rem;font-weight:600;
+}
+.amber-box{background:var(--amber-pale);border-color:#ddb87a}.amber-box .box-label{color:var(--amber)}
+.green-box{background:var(--green-pale);border-color:#90cba8}.green-box .box-label{color:var(--green-ok)}
+.red-box{background:var(--red-pale);border-color:#e8a0a0}.red-box .box-label{color:var(--red)}
+
+/* ─── TDS ────────────────────────────────────────────── */
+.tds-row{display:flex;align-items:center;gap:.6rem;margin-top:.28rem;flex-wrap:wrap}
+.tds-badge{
+  display:inline-flex;align-items:center;gap:.3rem;
+  font-size:.76rem;font-weight:600;padding:.22rem .62rem;border-radius:50px;white-space:nowrap;
+}
+.tds-ok{background:var(--green-pale);color:var(--green-ok)}
+.tds-low{background:var(--red-pale);color:var(--red)}
+.tds-high{background:#fff3cd;color:#a07020}
+
+/* ─── FLAVOR ─────────────────────────────────────────── */
+.flavor-sect{margin-top:.85rem}
+.flavor-desc{
+  background:linear-gradient(135deg,#f0f6ec,#f5f2eb);
+  border:1px solid #bad4a8;border-radius:var(--rm);
+  padding:.85rem .9rem;font-size:.8rem;line-height:1.62;
+  color:var(--text);margin-bottom:.8rem;
+}
+.flavor-desc .fd-label{
+  font-size:.68rem;font-weight:600;text-transform:uppercase;
+  letter-spacing:.07em;color:var(--leaf-mid);margin-bottom:.3rem;
+}
+.chart-wrap{display:flex;flex-direction:column;align-items:center;gap:.38rem}
+.chart-title{font-size:.68rem;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);font-weight:600}
+canvas{max-width:100%;width:260px;height:auto}
+
+/* ─── VARIETY CARD ───────────────────────────────────── */
+.variety-card{margin-top:1rem}
+.variety-inner{
+  background:linear-gradient(135deg,#f2f8ee,#faf8f2);
+  border:1.5px solid #b5d09c;border-radius:var(--r);
+  padding:1rem;box-shadow:var(--shadow);
+}
+.variety-header{
+  display:flex;align-items:flex-start;
+  justify-content:space-between;gap:.7rem;margin-bottom:.7rem;
+}
+.variety-title{font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:700;color:var(--forest)}
+.variety-subtitle{font-size:.72rem;color:var(--text-muted);margin-top:.1rem}
+.sca-badge{
+  flex-shrink:0;text-align:center;background:var(--forest);
+  border-radius:var(--rm);padding:.42rem .7rem;color:#fff;
+}
+.sca-num{font-family:'Playfair Display',serif;font-size:1.18rem;font-weight:700;color:var(--stat-val);line-height:1}
+.sca-lbl{font-size:.58rem;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.06em;margin-top:.12rem}
+.variety-tags{display:flex;flex-wrap:wrap;gap:.32rem;margin-bottom:.65rem}
+.vtag{
+  font-size:.7rem;font-weight:500;padding:.17rem .55rem;
+  border-radius:50px;background:rgba(45,90,27,.1);
+  color:var(--leaf);border:1px solid rgba(45,90,27,.2);
+}
+.vtag.amber{background:rgba(184,112,42,.1);color:var(--amber);border-color:rgba(184,112,42,.22)}
+.variety-notes{font-size:.8rem;line-height:1.6;color:var(--text)}
+
+/* ─── STEPS ──────────────────────────────────────────── */
+.steps{list-style:none;display:flex;flex-direction:column;gap:.52rem}
+.step{
+  display:flex;gap:.7rem;align-items:flex-start;
+  background:var(--card2);border:1px solid var(--border-light);
+  border-radius:var(--rm);padding:.72rem .85rem;
+  font-size:.82rem;line-height:1.5;color:var(--text);
+}
+.step-num{
+  flex-shrink:0;width:22px;height:22px;border-radius:50%;
+  background:var(--leaf);color:#fff;
+  font-family:'Playfair Display',serif;font-size:.73rem;font-weight:700;
+  display:flex;align-items:center;justify-content:center;margin-top:.05rem;
+}
+.step strong{font-weight:600;color:var(--forest)}
+
+/* ─── STEP SECTION HEADERS ───────────────────────────── */
+.step-section{
+  display:flex;align-items:center;gap:.6rem;
+  padding:.48rem .75rem;border-radius:var(--rs);
+  font-size:.71rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  margin-top:.8rem;margin-bottom:.1rem;
+}
+.step-section:first-child{margin-top:0}
+.step-section.esp{background:rgba(29,58,24,.08);color:var(--forest);border-left:3px solid var(--forest)}
+.step-section.milk{background:rgba(184,112,42,.09);color:var(--amber);border-left:3px solid var(--amber)}
+.step-section svg{width:14px;height:14px;flex-shrink:0}
+.rationale-box{
+  background:#edf7f1;border:1px solid #9fcdb4;
+  border-radius:var(--rm);padding:.75rem .9rem;
+  font-size:.8rem;line-height:1.62;color:var(--text);margin-top:.65rem;
+}
+.rationale-box .box-label{
+  display:block;font-size:.68rem;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--green-ok);margin-bottom:.22rem;font-weight:600;
+}
+
+/* ─── DRINK GRID ─────────────────────────────────────── */
+.drink-grid{
+  display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem;margin-top:.3rem;
+}
+.drink-btn{
+  padding:.7rem .35rem .6rem;border:1.5px solid var(--border);
+  border-radius:var(--rm);background:var(--card2);cursor:pointer;
+  text-align:center;transition:all .15s;font-family:'Plus Jakarta Sans',sans-serif;
+  -webkit-tap-highlight-color:transparent;min-height:110px;
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+}
+.drink-btn.active{border-color:var(--leaf-mid);background:rgba(45,90,27,.07);box-shadow:0 0 0 2px rgba(45,90,27,.12)}
+.drink-icon{width:56px;height:56px;display:flex;align-items:center;justify-content:center;margin:0 auto .32rem;flex-shrink:0}
+.drink-icon img{width:100%;height:100%;object-fit:contain;display:block}
+.drink-name{font-size:.73rem;font-weight:600;color:var(--forest);line-height:1.25}
+.drink-sub{font-size:.62rem;color:var(--text-muted);margin-top:.1rem;line-height:1.3}
+
+/* ─── CUP PRESETS ────────────────────────────────────── */
+.cup-presets{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.3rem}
+.cup-btn{
+  padding:.32rem .65rem;border:1.5px solid var(--border);
+  border-radius:50px;background:var(--card2);cursor:pointer;
+  font-size:.78rem;font-weight:500;color:var(--text-muted);
+  transition:all .15s;font-family:'Plus Jakarta Sans',sans-serif;
+  -webkit-tap-highlight-color:transparent;min-height:36px;
+}
+.cup-btn.active{border-color:var(--leaf-mid);background:rgba(45,90,27,.07);color:var(--forest);font-weight:600}
+.cup-custom{display:flex;align-items:center;gap:.5rem;margin-top:.5rem}
+.cup-custom input{max-width:100px}
+.cup-custom span{font-size:.82rem;color:var(--text-muted)}
+
+/* ─── MILK TYPE ──────────────────────────────────────── */
+.milk-btns{display:flex;gap:.38rem;flex-wrap:wrap;margin-top:.3rem}
+.milk-btn{
+  padding:.32rem .72rem;border:1.5px solid var(--border);
+  border-radius:50px;background:var(--card2);cursor:pointer;
+  font-size:.78rem;font-weight:500;color:var(--text-muted);
+  transition:all .15s;font-family:'Plus Jakarta Sans',sans-serif;
+  -webkit-tap-highlight-color:transparent;min-height:36px;
+}
+.milk-btn.active{border-color:var(--leaf-mid);background:rgba(45,90,27,.07);color:var(--forest);font-weight:600}
+
+/* ─── MILK RESULTS LAYOUT ────────────────────────────── */
+/* Stack cup diagram above stats on mobile, side-by-side on wider screens */
+.milk-result-top{display:flex;flex-direction:column;gap:.85rem;margin-bottom:.85rem}
+@media(min-width:500px){
+  .milk-result-top{flex-direction:row;align-items:flex-start;gap:1rem}
+  .milk-result-top .cup-diagram{flex-shrink:0}
+  .milk-result-top .milk-stats-col{flex:1;min-width:0}
+}
+.cup-diagram{display:flex;flex-direction:column;align-items:center;gap:.45rem}
+.cup-legend{display:flex;gap:.8rem;font-size:.72rem;color:var(--text-muted);flex-wrap:wrap;justify-content:center}
+.cup-legend-item{display:flex;align-items:center;gap:.3rem}
+.cup-legend-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+
+/* ─── MILK STATS GRID ────────────────────────────────── */
+.milk-rg{display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem;margin-bottom:.8rem}
+@media(min-width:380px){.milk-rg{grid-template-columns:repeat(4,1fr)}}
+
+/* ─── SPECIALTY NOTE ─────────────────────────────────── */
+.specialty-note{
+  background:linear-gradient(135deg,#f0f6ec,#f5eedf);
+  border:1px solid #c8d8b5;border-radius:var(--rm);
+  padding:.75rem .9rem;font-size:.8rem;line-height:1.58;
+  color:var(--text);margin-bottom:.65rem;
+}
+.specialty-note strong{color:var(--forest)}
+
+/* ─── EMPTY STATE ────────────────────────────────────── */
+.empty-state{text-align:center;padding:2rem 1rem;color:var(--text-muted)}
+.empty-state .icon{font-size:2.2rem;margin-bottom:.5rem;opacity:.45}
+.empty-state p{font-size:.84rem;line-height:1.6}
+
+/* ─── COLLAPSIBLE ────────────────────────────────────── */
+.collapsible-header{
+  display:flex;align-items:center;justify-content:space-between;cursor:pointer;
+  padding:.58rem .78rem;background:var(--card2);
+  border:1px solid var(--border-light);border-radius:var(--rs);
+  font-size:.82rem;font-weight:600;color:var(--text-muted);
+  margin-bottom:.42rem;transition:background .15s;user-select:none;
+  -webkit-tap-highlight-color:transparent;min-height:44px;
+}
+.collapsible-header .arr{transition:transform .2s;font-size:.7rem}
+.collapsible-header.open .arr{transform:rotate(180deg)}
+.collapsible-body{display:none;padding-top:.2rem}
+.collapsible-body.open{display:block}
+
+/* ─── HEADER ICON ────────────────────────────────────── */
+.hd-icon{width:42px;height:42px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.hd-icon svg{width:42px;height:42px}
+/* ─── TAB ICON ───────────────────────────────────────── */
+.tab-icon{width:16px;height:16px;flex-shrink:0;vertical-align:middle;margin-right:5px;margin-top:-2px}
+.tab-btn{display:inline-flex;align-items:center;justify-content:center}
+@media(min-width:780px){
+  header{padding:1rem 2rem}
+  .hd-text{font-size:1.6rem}
+  .hd-tag{font-size:.68rem}
+  main{padding:1.5rem 1.25rem 5rem}
+  .tab-nav{padding:0 2rem;top:4rem}
+  .card{padding:1.35rem}
+  canvas{width:250px}
+}
+</style>
+
+</head>
+<body>
+<header>
+  <div class="hd-logo">
+    <div class="hd-icon">
+      <svg width="42" height="42" viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Steam wisps -->
+        <path d="M14 9 Q13 6 15 4 Q17 2 16 0" stroke="#d4924e" stroke-width="1.4" stroke-linecap="round" fill="none" opacity="0.7"/>
+        <path d="M20 8 Q19 5 21 3 Q23 1 22 0" stroke="#d4924e" stroke-width="1.4" stroke-linecap="round" fill="none" opacity="0.7"/>
+        <path d="M26 9 Q25 6 27 4 Q29 2 28 0" stroke="#d4924e" stroke-width="1.4" stroke-linecap="round" fill="none" opacity="0.7"/>
+        <!-- Saucer -->
+        <ellipse cx="21" cy="37" rx="14" ry="3" fill="#8a6040"/>
+        <ellipse cx="21" cy="36.2" rx="12.5" ry="2.2" fill="#a07850"/>
+        <!-- Cup body -->
+        <path d="M10 18 Q10 32 21 33 Q32 32 32 18 Z" fill="#f5f0e8"/>
+        <path d="M10 18 Q10 32 21 33 Q32 32 32 18" stroke="#8a6040" stroke-width="1.5" fill="none" stroke-linejoin="round"/>
+        <!-- Coffee surface -->
+        <ellipse cx="21" cy="18" rx="11" ry="3.5" fill="#5c2e10"/>
+        <ellipse cx="21" cy="18" rx="11" ry="3.5" stroke="#8a6040" stroke-width="1.4"/>
+        <!-- Coffee liquid crema gradient inside -->
+        <ellipse cx="21" cy="18" rx="9" ry="2.5" fill="#8a4e20" opacity="0.6"/>
+        <ellipse cx="20" cy="17.5" rx="4" ry="1.2" fill="#c07030" opacity="0.45"/>
+        <!-- Handle -->
+        <path d="M32 21 Q40 21 40 25.5 Q40 30 32 30" stroke="#8a6040" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <!-- Cup rim highlight -->
+        <ellipse cx="21" cy="18" rx="11" ry="3.5" fill="none" stroke="#bca080" stroke-width="0.6" opacity="0.5"/>
+      </svg>
+    </div>
+    <div>
+      <div class="hd-text">Coffee<span>Craft</span></div>
+      <div class="hd-tag">Professional Brew Calculator</div>
+    </div>
+  </div>
+</header>
+<div class="tab-nav" id="tabNav">
+  <button class="tab-btn active" onclick="switchTab('brew',this)">
+    <svg class="tab-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M4 8 Q4 15 10 16 Q16 15 16 8 Z" fill="currentColor" opacity="0.9"/>
+      <ellipse cx="10" cy="8" rx="6" ry="2" fill="currentColor" opacity="0.7"/>
+      <path d="M16 9.5 Q19.5 9.5 19.5 12 Q19.5 14.5 16 14.5" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+      <ellipse cx="18" cy="18.5" rx="8" ry="1.5" fill="currentColor" opacity="0.3"/>
+      <path d="M6 4.5 Q5.5 3 6.5 2" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" fill="none" opacity="0.6"/>
+      <path d="M10 4 Q9.5 2.5 10.5 1.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" fill="none" opacity="0.6"/>
+      <path d="M14 4.5 Q13.5 3 14.5 2" stroke="currentColor" stroke-width="1.1" stroke-linecap="round" fill="none" opacity="0.6"/>
+    </svg>
+    Brew
+  </button>
+  <button class="tab-btn" onclick="switchTab('milk',this)">
+    <svg class="tab-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- Milk pitcher / jug icon -->
+      <path d="M6 4 L7.5 17 Q7.5 18 10 18 Q12.5 18 12.5 17 L14 4 Z" fill="currentColor" opacity="0.85"/>
+      <ellipse cx="10" cy="4" rx="4" ry="1.2" fill="currentColor" opacity="0.6"/>
+      <path d="M14 7 Q17 7 17 9.5 Q17 11 14 11.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+      <!-- Spout -->
+      <path d="M7 4 Q7 2.5 8 2 L12 2 Q13 2.5 13 4" fill="currentColor" opacity="0.5"/>
+      <!-- Steam from top -->
+      <path d="M9 1.5 Q8.5 0.5 9.5 0" stroke="currentColor" stroke-width="1" stroke-linecap="round" fill="none" opacity="0.5"/>
+      <path d="M11 1.5 Q10.5 0.5 11.5 0" stroke="currentColor" stroke-width="1" stroke-linecap="round" fill="none" opacity="0.5"/>
+    </svg>
+    Milk Drinks
+  </button>
+</div>
+<main>
+
+<!-- ═══════════ TAB 1: BREW CALCULATOR ═══════════ -->
+<div id="tab-brew" class="tab-content active">
+<div class="layout">
+
+  <!-- LEFT: INPUTS -->
+  <div class="card">
+    <h2>Brew Parameters</h2>
+
+    <div class="field">
+      <label class="field-label">Dose Weight (grams)</label>
+      <input type="number" id="b-dose" value="18" min="1" max="500" step="0.5">
+    </div>
+    <div class="field">
+      <label class="field-label">Brew Method</label>
+      <select id="b-method" onchange="onBrewMethodChange()">
+        <optgroup label="Pour Over"><option value="v60">V60</option><option value="chemex">Chemex</option><option value="kalitaWave">Kalita Wave</option><option value="binocularDripper">Binocular Dripper</option></optgroup>
+        <optgroup label="Espresso"><option value="espresso">Espresso</option><option value="ristretto">Ristretto</option><option value="lungo">Lungo</option><option value="americano">Americano</option><option value="longBlack">Long Black</option></optgroup>
+        <optgroup label="Immersion"><option value="aeropress">AeroPress</option><option value="frenchPress">French Press</option><option value="cleverDripper">Clever Dripper</option></optgroup>
+        <optgroup label="Other"><option value="siphon">Siphon</option><option value="mokaPotAl">Moka Pot (Aluminum)</option><option value="mokaPotInox">Moka Pot (Inox)</option><option value="batchBrew">Batch Brew (Drip)</option><option value="coldBrew">Cold Brew</option><option value="nitroColdBrew">Nitro Cold Brew</option></optgroup>
+      </select>
+    </div>
+
+    <div id="b-espSection" style="display:none">
+      <div class="field">
+        <label class="field-label">Espresso Basket Type</label>
+        <div class="radio-group">
+          <label class="radio-opt"><input type="radio" name="b-basket" value="nonPressurized" checked><div class="radio-opt-text">Non-Pressurized (Standard)<small>Precise grind required — rewarding and nuanced.</small></div></label>
+          <label class="radio-opt"><input type="radio" name="b-basket" value="pressurized"><div class="radio-opt-text">Pressurized (Dual-Wall)<small>This fundamentally changes how espresso is brewed.</small></div></label>
+        </div>
+      </div>
+      <label class="checkbox-opt">
+        <input type="checkbox" id="b-adv">
+        <div class="checkbox-opt-text"><strong>Advanced Espresso Controls</strong>Supports pressure, flow, and/or temperature profiling.</div>
+      </label>
+    </div>
+
+    <div class="field" style="margin-top:.9rem">
+      <label class="field-label">Coffee Variety</label>
+      <select id="b-variety" onchange="brewCalc()"></select>
+    </div>
+    <div class="field">
+      <label class="field-label">Bean Processing Method</label>
+      <select id="b-processing"></select>
+    </div>
+    <div class="field">
+      <label class="field-label">Bean Roast Level</label>
+      <select id="b-roast">
+        <option value="light">Light (Cinnamon / Early First Crack)</option>
+        <option value="mediumLight">Medium-Light (City / Post First Crack)</option>
+        <option value="medium" selected>Medium (Full City / Before Second Crack)</option>
+        <option value="mediumDark">Medium-Dark (Vienna / Start of Second Crack)</option>
+        <option value="dark">Dark (French / Well into Second Crack)</option>
+      </select>
+    </div>
+    <div class="field" id="b-strengthField">
+      <label class="field-label">Brew Strength</label>
+      <div class="strength-row">
+        <span class="strength-label">Mild</span>
+        <input type="range" id="b-strength" min="0" max="4" value="2" step="1">
+        <span class="strength-label">Bold</span>
+      </div>
+    </div>
+    <div class="field">
+      <label class="field-label">Measured TDS % (optional)</label>
+      <div class="tds-row">
+        <input type="number" id="b-tds" placeholder="e.g. 1.35" min="0" max="30" step="0.01" style="max-width:130px">
+        <span id="b-tdsBadge" style="display:none"></span>
+      </div>
+      <div style="font-size:.7rem;color:var(--text-muted);margin-top:.28rem">Refractometer reading for personalised advice</div>
+    </div>
+    <button class="btn" onclick="brewCalc()">Calculate Brew Recipe &#8594;</button>
+  </div>
+
+  <!-- RIGHT: RESULTS -->
+  <div>
+    <div class="card">
+      <h2>Your Brew Recipe</h2>
+      <div id="b-results">
+        <div class="empty-state"><div class="icon">&#9749;</div><p>Set your parameters and tap<br><em>Calculate Brew Recipe</em>.</p></div>
+      </div>
+    </div>
+    <div id="b-varietyCard" class="variety-card" style="display:none"><div class="variety-inner"><h2>Variety Profile</h2><div id="b-varietyContent"></div></div></div>
+    <div id="b-guideCard" class="card section-gap" style="display:none"><h2>Step-by-Step Brew Guide</h2><ol class="steps" id="b-steps"></ol></div>
+  </div>
+</div>
+</div><!-- end tab-brew -->
+
+<!-- ═══════════ TAB 2: MILK DRINKS ═══════════ -->
+<div id="tab-milk" class="tab-content">
+<div class="layout">
+
+  <!-- LEFT: MILK INPUTS -->
+  <div class="card">
+    <h2>Drink Parameters</h2>
+
+    <div class="field">
+      <label class="field-label">Drink Type</label>
+      <div class="drink-grid" id="drinkGrid"></div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">Shot Type</label>
+      <div class="shot-toggle" id="shotToggle">
+        <button class="shot-btn" id="shot-single" onclick="setShot('single')">Single</button>
+        <button class="shot-btn active" id="shot-double" onclick="setShot('double')">Double</button>
+      </div>
+      <div class="row2" style="margin-top:.45rem">
+        <div>
+          <label class="field-label">Dose (g)</label>
+          <input type="number" id="m-dose" value="18" min="4" max="40" step="0.5">
+        </div>
+        <div>
+          <label class="field-label">Espresso Ratio</label>
+          <input type="number" id="m-ratio" value="2.0" min="1" max="4" step="0.1">
+        </div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">Cup Size</label>
+      <div class="cup-presets" id="cupPresets"></div>
+      <div class="cup-custom">
+        <input type="number" id="m-cupMl" placeholder="Custom ml" min="30" max="600" step="5">
+        <span>ml</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">Milk Type</label>
+      <div class="milk-btns" id="milkBtns">
+        <button class="milk-btn active" onclick="setMilk('whole',this)">Whole</button>
+        <button class="milk-btn" onclick="setMilk('oat',this)">Oat</button>
+        <button class="milk-btn" onclick="setMilk('almond',this)">Almond</button>
+        <button class="milk-btn" onclick="setMilk('soy',this)">Soy</button>
+        <button class="milk-btn" onclick="setMilk('coconut',this)">Coconut</button>
+        <button class="milk-btn" onclick="setMilk('pea',this)">Pea</button>
+      </div>
+    </div>
+
+    <!-- Espresso Settings (collapsible) -->
+    <div>
+      <div class="collapsible-header open" onclick="toggleCollapsible(this)">
+        &#9889; Espresso Settings <span class="arr">&#9650;</span>
+      </div>
+      <div class="collapsible-body open" id="espCollBody">
+        <div class="field">
+          <label class="field-label">Coffee Variety</label>
+          <select id="m-variety" onchange="milkCalc()"></select>
+        </div>
+        <div class="field">
+          <label class="field-label">Bean Processing</label>
+          <select id="m-processing"></select>
+        </div>
+        <div class="field">
+          <label class="field-label">Bean Roast Level</label>
+          <select id="m-roast">
+            <option value="light">Light (Cinnamon)</option>
+            <option value="mediumLight">Medium-Light (City)</option>
+            <option value="medium" selected>Medium (Full City)</option>
+            <option value="mediumDark">Medium-Dark (Vienna)</option>
+            <option value="dark">Dark (French)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label">Espresso Basket Type</label>
+          <div class="radio-group">
+            <label class="radio-opt"><input type="radio" name="m-basket" value="nonPressurized" checked><div class="radio-opt-text">Non-Pressurized (Standard)</div></label>
+            <label class="radio-opt"><input type="radio" name="m-basket" value="pressurized"><div class="radio-opt-text">Pressurized (Dual-Wall)</div></label>
+          </div>
+        </div>
+        <label class="checkbox-opt"><input type="checkbox" id="m-adv"><div class="checkbox-opt-text"><strong>Advanced Espresso Controls</strong>Pressure/flow/temperature profiling.</div></label>
+      </div>
+    </div>
+
+    <button class="btn" style="margin-top:.85rem" onclick="milkCalc()">Calculate Milk Drink &#8594;</button>
+  </div>
+
+  <!-- RIGHT: MILK RESULTS -->
+  <div>
+    <div class="card">
+      <h2>Your Milk Drink Recipe</h2>
+      <div id="m-results">
+        <div class="empty-state"><div class="icon">🥛</div><p>Select a drink type and tap<br><em>Calculate Milk Drink</em>.</p></div>
+      </div>
+    </div>
+    <div id="m-varietyCard" class="variety-card" style="display:none"><div class="variety-inner"><h2>Espresso Variety Profile</h2><div id="m-varietyContent"></div></div></div>
+    <div id="m-guideCard" class="card section-gap" style="display:none"><h2>Step-by-Step Guide</h2><ol class="steps" id="m-steps"></ol></div>
+  </div>
+</div>
+</div><!-- end tab-milk -->
+
+</main>
+<script>
+// ═══════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════
+
+const V={
+  bourbon:         {n:"Bourbon",          sca:86.6, grp:"The Foundations",      org:"Bourbon Island",    f:[4.0,3.5,3.5,1.5,3.5,4.0], no:["caramel","brown sugar","red fruit","chocolate"],         desc:"The archetypical specialty Arabica. Round body, excellent balance, brown sugar-like sweetness."},
+  typica:          {n:"Typica",           sca:86.5, grp:"The Foundations",      org:"Yemen → World",     f:[3.5,3.5,3.5,1.5,3.0,3.0], no:["floral","citrus","vanilla","mild sweetness"],             desc:"The genetic foundation of most Arabica. Clean, complex and sweet with mild balanced acidity."},
+  geshaGeisha:     {n:"Gesha / Geisha",   sca:91.5, grp:"The Ancients",         org:"Ethiopia → Panama", f:[3.5,4.5,5.0,0.5,2.0,4.5], no:["jasmine","bergamot","peach","tea-like elegance"],          desc:"The benchmark for Pinnacle quality. Extraordinary complexity and record-breaking auction prices."},
+  yirgacheffe:     {n:"Yirgacheffe",      sca:87.0, grp:"The Ancients",         org:"Ethiopia (Gedeo)",  f:[3.5,4.5,4.5,0.8,2.5,4.5], no:["jasmine","blueberry","lemon","black tea"],               desc:"One of the world's most celebrated Ethiopian landraces. Bright, clean, complex and floral."},
+  harrar:          {n:"Harrar",           sca:86.5, grp:"The Ancients",         org:"Ethiopia",          f:[3.0,3.5,4.0,2.0,3.5,3.5], no:["blueberry jam","red wine","dark chocolate","spice"],       desc:"Classic Ethiopian natural coffee. Full-bodied, complex, wild rustic fruit character."},
+  wushWush:        {n:"Wush Wush",        sca:89.6, grp:"The Ancients",         org:"Ethiopia (Kaffa)",  f:[5.0,3.5,4.5,0.5,2.5,5.0], no:["watermelon candy","strawberry","intense florals"],         desc:"A rare, low-yield variety that can stun. Intense candy-like sweetness and tropical fruit notes."},
+  sidra:           {n:"Sidra",            sca:86.0, grp:"The Ancients",         org:"Ecuador / Ethiopia",f:[4.0,4.5,4.5,0.5,2.5,4.5], no:["red currant","strawberry","sangria","bright florals"],     desc:"Extraordinary cup quality, vibrant acidity and pronounced fruit notes."},
+  rumeSudan:       {n:"Rume Sudan",       sca:90.0, grp:"The Ancients",         org:"Ethiopia / Sudan",  f:[4.5,4.0,5.0,0.5,2.5,5.0], no:["jasmine","spice","extraordinary complexity","aroma"],      desc:"Used as parent for elite F1 hybrids. Exceptional quality, drought tolerant."},
+  javaLandrace:    {n:"Java (Landrace)",  sca:84.3, grp:"The Ancients",         org:"Ethiopia → Java",   f:[3.0,3.5,3.0,2.0,3.5,3.0], no:["earthy","dark chocolate","nuts","herbal"],                  desc:"Rich body with chocolate and earthy notes. Disease tolerant."},
+  pinkBourbon:     {n:"Pink Bourbon",     sca:86.4, grp:"Bourbon Mutations",    org:"Colombia",          f:[4.5,4.0,4.5,0.5,3.0,4.5], no:["tropical fruit","candy","floral","unique complexity"],     desc:"Prized for unique peach, honeysuckle and tropical flavours. Exceptionally sweet and clean."},
+  redBourbon:      {n:"Red Bourbon",      sca:87.3, grp:"Bourbon Mutations",    org:"Bourbon Island",    f:[4.0,3.5,3.5,1.5,3.5,4.0], no:["red cherry","caramel","chocolate","sweet"],                 desc:"The original Bourbon variety, known for deep fruit notes and a dense body."},
+  yellowBourbon:   {n:"Yellow Bourbon",   sca:86.0, grp:"Bourbon Mutations",    org:"Brazil",            f:[4.5,3.0,4.0,1.5,3.5,4.5], no:["honey","peach","caramel","very sweet"],                    desc:"Brighter and more floral than Red Bourbon, with pronounced acidity and sweetness."},
+  caturra:         {n:"Caturra",          sca:86.3, grp:"Bourbon Mutations",    org:"Brazil",            f:[3.0,4.0,3.0,1.5,2.5,3.0], no:["bright citrus","honey","maple","caramel"],                  desc:"Compact mutation of Bourbon with higher yields. Often brighter. A staple of specialty coffee."},
+  pacas:           {n:"Pacas",            sca:86.0, grp:"Bourbon Mutations",    org:"El Salvador",       f:[3.5,3.5,3.5,1.5,3.0,3.5], no:["caramel","citrus","balanced","sweet finish"],               desc:"Natural mutation of Bourbon known for sweetness and balance. Parent of Pacamara."},
+  villaSarchi:     {n:"Villa Sarchi",     sca:86.5, grp:"Bourbon Mutations",    org:"Costa Rica",        f:[4.0,4.0,3.5,1.0,3.0,4.0], no:["honey","citrus","sweet","raspberry"],                      desc:"Natural compact Bourbon mutation from Costa Rica. Parent of the Sarchimor group."},
+  sl28:            {n:"SL28",             sca:86.6, grp:"Bourbon Mutations",    org:"Kenya",             f:[3.5,4.5,4.0,1.0,3.0,4.0], no:["blackcurrant","grapefruit","complex acidity","savory"],     desc:"Exceptional cup quality, intense grapefruit-like brightness and savory complexity."},
+  laurina:         {n:"Laurina",          sca:86.9, grp:"Bourbon Mutations",    org:"Bourbon Island",    f:[4.0,3.0,4.0,0.5,2.0,4.0], no:["floral","almond","sweet","low caffeine"],                   desc:"Also known as Bourbon Pointu. Naturally low caffeine, smooth and silky body."},
+  mokhaVariety:    {n:"Mokha / Mocha",    sca:86.0, grp:"Bourbon Mutations",    org:"Yemen",             f:[4.5,3.5,4.5,1.0,2.0,4.5], no:["intense","complex","floral","chocolatey"],                  desc:"Ancient variety from Yemen. Distinct chocolatey notes and historic significance."},
+  blueMountain:    {n:"Blue Mountain",    sca:86.0, grp:"Typica Mutations",     org:"Jamaica",           f:[3.0,2.5,3.5,1.0,3.5,4.0], no:["mild","sweet","balanced","clean chocolate"],                desc:"World-famous. Mild, sweet flavour, lack of bitterness, exceptionally clean cup."},
+  maragogipe:      {n:"Maragogipe",       sca:88.3, grp:"Typica Mutations",     org:"Brazil",            f:[3.5,3.0,3.5,1.5,4.0,3.5], no:["floral nuances","honey","spice","peach"],                   desc:"Very large 'elephant beans'. Excellent quality with citrus, floral notes and heavy body."},
+  sl34:            {n:"SL34",             sca:86.6, grp:"Typica Mutations",     org:"Kenya",             f:[3.5,4.0,3.5,1.5,3.5,3.5], no:["citrus","complex","bright","full body"],                    desc:"Typica selection from Kenya. High-quality profile similar to SL28 but with heavier body."},
+  pacamara:        {n:"Pacamara",         sca:87.5, grp:"Typica & Bourbon Hybrids",org:"El Salvador",    f:[3.5,4.0,4.0,1.0,3.5,4.0], no:["melon","stone fruit","floral","complex acidity"],           desc:"Hybrid of Pacas and Maragogipe. Consistent Cup of Excellence winner."},
+  catuai:          {n:"Catuai",           sca:86.4, grp:"Typica & Bourbon Hybrids",org:"Brazil",         f:[3.5,3.5,3.0,2.0,3.0,3.0], no:["honey","red berries","marzipan","silky"],                   desc:"Mundo Novo × Caturra. Prominent in Central America, good quality and balance."},
+  yellowCatuai:    {n:"Yellow Catuai",    sca:86.3, grp:"Typica & Bourbon Hybrids",org:"Brazil",         f:[4.0,3.5,3.5,1.5,3.0,3.5], no:["clean","syrupy","honey","marzipan"],                        desc:"Strong, rich flavour that has achieved high competition scores."},
+  maracaturra:     {n:"Maracaturra",      sca:87.6, grp:"Typica & Bourbon Hybrids",org:"Nicaragua",      f:[3.5,4.0,4.0,1.5,3.5,4.0], no:["peach","melon","pleasant acidity","complex"],               desc:"Hybrid of Maragogipe and Caturra. Sophisticated cup with fruity, sweet notes."},
+  mundoNovo:       {n:"Mundo Novo",       sca:84.6, grp:"Typica & Bourbon Hybrids",org:"Brazil",         f:[3.5,3.0,3.0,2.0,4.0,3.5], no:["hazelnut","chocolate","fruit","full body"],                  desc:"Natural Typica × Bourbon hybrid. High yield and good cup profile."},
+  kent:            {n:"Kent",             sca:83.5, grp:"Typica & Bourbon Hybrids",org:"India",           f:[3.0,3.0,3.0,2.0,3.5,3.0], no:["chocolate","mild spice","balanced","clean"],                desc:"Early disease-resistant selection from India. Low-acid with mild flavour."},
+  castillo:        {n:"Castillo",         sca:86.0, grp:"Interspecific Hybrids", org:"Colombia",          f:[3.0,3.5,3.0,2.0,3.5,3.0], no:["smooth","bright","balanced","fruity citric"],              desc:"Most widely planted in Colombia. Can score 90+. Smooth, bright and balanced."},
+  marsellesa:      {n:"Marsellesa",       sca:86.0, grp:"Interspecific Hybrids", org:"Nicaragua",         f:[3.5,4.0,3.5,1.0,3.0,3.5], no:["raspberry","pear","caramel","delicate florals"],           desc:"High, lively, refined acidity with balanced body. Delicate fruit and floral notes."},
+  parainema:       {n:"Parainema",        sca:87.8, grp:"Interspecific Hybrids", org:"Honduras",          f:[3.5,4.0,4.0,1.5,3.5,4.0], no:["lime","honey","peach","floral herbal"],                    desc:"Cup of Excellence winner. Pronounced citric acidity or pleasant honey-like sweetness."},
+  batian:          {n:"Batian",           sca:84.3, grp:"Interspecific Hybrids", org:"Kenya",             f:[3.0,3.5,3.0,2.5,4.0,3.0], no:["fruit","chocolate","spices","bright acidity"],             desc:"Released in Kenya 2010. Retains SL28/SL34 character with disease resistance."},
+  tabi:            {n:"Tabi",             sca:84.0, grp:"Interspecific Hybrids", org:"Colombia",          f:[3.5,3.5,4.0,1.5,3.5,3.5], no:["cacao","orange","red fruits","bright citrus"],             desc:"Retains positive traits of Bourbon/Typica parents. 'Tabi' means 'good'."},
+  s795:            {n:"S795",             sca:86.0, grp:"Interspecific Hybrids", org:"India",             f:[3.0,3.0,3.0,2.0,3.5,3.0], no:["maple syrup","brown sugar","caramel","mocha"],             desc:"Very fine cup with distinct maple syrup, brown sugar, caramel and mocha notes."},
+  timorHybrid:     {n:"Timor Hybrid",     sca:85.6, grp:"Interspecific Hybrids", org:"East Timor",        f:[2.5,2.5,2.5,3.0,4.5,2.5], no:["dark chocolate","molasses","fig","full body"],              desc:"Foundation for nearly all rust-resistant breeding. Parent of Catimor/Sarchimor."},
+  f1Hybrids:       {n:"F1 Hybrids",       sca:87.0, grp:"Interspecific Hybrids", org:"Various",           f:[3.5,4.0,4.0,1.5,3.0,3.5], no:["complex","fruity","variable","bright acidity"],            desc:"First-generation crosses with high heterosis. Variable but generally excellent quality."},
+  ethiopianHeirlooms:{n:"Ethiopian Heirlooms",sca:87.0,grp:"Other",            org:"Ethiopia",            f:[3.0,4.5,4.5,1.0,2.5,4.0], no:["blueberry","jasmine","tropical","berry florals"],          desc:"The incredibly diverse wild and landrace coffees of Ethiopia. Genetic birthplace of Arabica."},
+  fineRobusta:     {n:"Fine Robusta",     sca:82.0, grp:"Other",               org:"Congo / Vietnam",     f:[2.5,2.0,2.5,4.0,5.0,2.5], no:["earthy","tobacco","full body","bold crema"],               desc:"Specialty-grade Robusta with high cupping scores. Creates exceptional crema in espresso."},
+};
+
+const PROC_OPTS=[
+  {v:"washed",n:"Washed"},{v:"natural",n:"Natural (Dry Processed)"},{v:"honey",n:"Honey Processed"},
+  {v:"wetHulled",n:"Wet Hulled (Giling Basah)"},{v:"semiWashed",n:"Semi-Washed (Pulped Natural)"},
+  {v:"anaerobicNatural",n:"Anaerobic Natural"},{v:"anaerobicWashed",n:"Anaerobic Washed"},
+  {v:"carbonicNatural",n:"Carbonic Maceration (Natural)"},{v:"carbonicWashed",n:"Carbonic Maceration (Washed)"},
+  {v:"lacticFermentation",n:"Lactic Fermentation"},{v:"yeastFermentation",n:"Yeast-Inoculated Fermentation"},
+  {v:"kojiFermentation",n:"Koji Fermentation (Fungal)"},{v:"doubleFermentation",n:"Double Fermentation"},
+  {v:"extendedFermentation",n:"Extended Fermentation"},{v:"coFermentation",n:"Co-fermentation (with fruit/spices)"},
+  {v:"blackHoney",n:"Black Honey"},{v:"redHoney",n:"Red Honey"},{v:"yellowHoney",n:"Yellow Honey"},
+  {v:"whiteHoney",n:"White Honey"},{v:"aquapulp",n:"Aquapulp (Mechanical Demucilaging)"},
+  {v:"raisinHoney",n:"Raisin Honey (CHM)"},{v:"cryoMaceration",n:"Cryo-Maceration (Freezing)"},
+  {v:"experimental",n:"Experimental / Other"},
+];
+
+// M: Brew methods — FIXED TIMING based on specialty coffee best practices
+const M={
+  v60:            {n:"V60",                 br:15, rng:[13,18], gr:"Medium-Fine",   t:[92,96], ti:"3–4 min",    cold:false,esp:false, tdsRange:[1.15,1.35],extRange:[18,22]},
+  chemex:         {n:"Chemex",              br:16, rng:[14,18], gr:"Medium-Coarse", t:[93,96], ti:"4–5 min",    cold:false,esp:false, tdsRange:[1.15,1.35],extRange:[18,22]},
+  kalitaWave:     {n:"Kalita Wave",         br:15, rng:[13,17], gr:"Medium-Fine",   t:[92,96], ti:"3–4 min",    cold:false,esp:false, tdsRange:[1.15,1.40],extRange:[18,22]},
+  binocularDripper:{n:"Binocular Dripper",  br:15, rng:[13,17], gr:"Medium-Fine",   t:[92,96], ti:"3–4 min",    cold:false,esp:false, tdsRange:[1.15,1.35],extRange:[18,22]},
+  // FIXED: 25–30 sec is specialty standard (Ratiocraft shows ~28 sec in screenshot)
+  espresso:       {n:"Espresso",            br:2,  rng:[1.5,2.5],gr:"Extra-Fine",   t:[90,93], ti:"25–30 sec",  cold:false,esp:true,  tdsRange:[8,12],  extRange:[18,22]},
+  ristretto:      {n:"Ristretto",           br:1.5,rng:[1,2],   gr:"Extra-Fine",    t:[91,93], ti:"15–25 sec",  cold:false,esp:true,  tdsRange:[10,15], extRange:[16,20]},
+  lungo:          {n:"Lungo",               br:3,  rng:[2.5,4],  gr:"Fine",          t:[89,93], ti:"30–45 sec",  cold:false,esp:true,  tdsRange:[4,8],   extRange:[18,22]},
+  americano:      {n:"Americano",           br:2,  rng:[1.5,2.5],gr:"Extra-Fine",    t:[90,93], ti:"25–30 sec",  cold:false,esp:true,  tdsRange:[1.0,1.5],extRange:[18,22],am:true},
+  longBlack:      {n:"Long Black",          br:2,  rng:[1.5,2.5],gr:"Extra-Fine",    t:[90,93], ti:"25–30 sec",  cold:false,esp:true,  tdsRange:[1.0,1.5],extRange:[18,22],am:true},
+  aeropress:      {n:"AeroPress",           br:13, rng:[10,16],  gr:"Medium-Fine",   t:[85,96], ti:"1:30–2 min", cold:false,esp:false, tdsRange:[1.20,1.45],extRange:[18,22]},
+  frenchPress:    {n:"French Press",        br:14, rng:[12,16],  gr:"Coarse",        t:[93,96], ti:"4 min",      cold:false,esp:false, tdsRange:[1.0,1.30],extRange:[18,22]},
+  cleverDripper:  {n:"Clever Dripper",      br:15, rng:[13,17],  gr:"Medium",        t:[92,95], ti:"3–4 min",    cold:false,esp:false, tdsRange:[1.15,1.40],extRange:[18,22]},
+  siphon:         {n:"Siphon",              br:14, rng:[12,16],  gr:"Medium-Fine",   t:[90,95], ti:"3–4 min",    cold:false,esp:false, tdsRange:[1.15,1.35],extRange:[18,22]},
+  mokaPotAl:      {n:"Moka Pot (Aluminum)", br:9,  rng:[7,11],   gr:"Fine",          t:[85,95], ti:"4–5 min",    cold:false,esp:false, tdsRange:[2.0,5.0], extRange:[20,25]},
+  mokaPotInox:    {n:"Moka Pot (Inox)",     br:9,  rng:[7,11],   gr:"Fine",          t:[85,95], ti:"4–5 min",    cold:false,esp:false, tdsRange:[2.0,5.0], extRange:[20,25]},
+  batchBrew:      {n:"Batch Brew (Drip)",   br:17, rng:[15,20],  gr:"Medium",        t:[90,96], ti:"5–8 min",    cold:false,esp:false, tdsRange:[1.15,1.35],extRange:[18,22]},
+  coldBrew:       {n:"Cold Brew",           br:8,  rng:[6,12],   gr:"Coarse",        t:[4,20],  ti:"12–24 h",    cold:true, esp:false, tdsRange:[1.0,1.3], extRange:[15,20]},
+  nitroColdBrew:  {n:"Nitro Cold Brew",     br:8,  rng:[5,10],   gr:"Coarse",        t:[4,20],  ti:"12–24 h",    cold:true, esp:false, tdsRange:[1.0,1.3], extRange:[15,20]},
+};
+
+const R={
+  light:      {l:"Light",       ra:-1.5,f:[ 0.5, 1.5, 1.0,-1.0,-0.5, 0.5]},
+  mediumLight:{l:"Medium-Light",ra:-0.7,f:[ 0.3, 0.7, 0.5,-0.5, 0.0, 0.3]},
+  medium:     {l:"Medium",      ra: 0.0,f:[ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]},
+  mediumDark: {l:"Medium-Dark", ra: 0.5,f:[-0.3,-0.7,-0.3, 0.7, 0.5,-0.3]},
+  dark:       {l:"Dark",        ra: 1.0,f:[-0.7,-1.5,-0.7, 1.5, 0.5,-0.7]},
+};
+
+const P={
+  washed:           {ra: 0.0,f:[ 0.0, 0.5, 0.0, 0.0,-0.3, 0.0],no:["clean","bright","transparent"]},
+  natural:          {ra:-0.5,f:[ 1.0,-0.5, 0.5, 0.0, 0.5, 0.5],no:["fruity","wine-like","jammy sweetness"]},
+  honey:            {ra:-0.3,f:[ 0.5, 0.0, 0.3, 0.0, 0.3, 0.5],no:["honey-sweet","stone fruit","balanced"]},
+  wetHulled:        {ra: 0.3,f:[-0.3,-0.5,-0.3, 0.5, 1.0,-0.3],no:["earthy","herbal","full body"]},
+  semiWashed:       {ra:-0.2,f:[ 0.3, 0.2, 0.2, 0.0, 0.3, 0.3],no:["balanced","mild sweetness","clean"]},
+  anaerobicNatural: {ra:-0.5,f:[ 0.5,-0.3, 0.7, 0.0, 0.5, 0.5],no:["funky","tropical","fermented fruit"]},
+  anaerobicWashed:  {ra:-0.3,f:[ 0.3, 0.2, 0.5, 0.0, 0.2, 0.3],no:["complex","bright fruit","juicy"]},
+  carbonicNatural:  {ra:-0.4,f:[ 0.5, 0.3, 1.0, 0.0, 0.3, 0.5],no:["sparkling","vibrant","effervescent"]},
+  carbonicWashed:   {ra:-0.3,f:[ 0.3, 0.5, 0.7, 0.0, 0.0, 0.3],no:["juicy","bright","aromatic clarity"]},
+  lacticFermentation:{ra:-0.4,f:[ 0.7, 0.5, 0.5, 0.0, 0.2, 0.5],no:["creamy","silky","sweet tartness"]},
+  yeastFermentation:{ra:-0.3,f:[ 0.3, 0.3, 0.7, 0.0, 0.3, 0.3],no:["bread-like","complex","aromatic"]},
+  kojiFermentation: {ra:-0.4,f:[ 0.5, 0.2, 1.0, 0.0, 0.3, 0.5],no:["umami","floral","sake-like"]},
+  doubleFermentation:{ra:-0.4,f:[ 0.3, 0.5, 0.7, 0.0, 0.3, 0.3],no:["complex","layered","fruit-forward"]},
+  extendedFermentation:{ra:-0.3,f:[0.3, 0.3, 0.5, 0.2, 0.5, 0.3],no:["funky","rich","complex depth"]},
+  coFermentation:   {ra:-0.4,f:[ 0.3, 0.2, 1.0, 0.0, 0.3, 0.5],no:["exotic","spiced fruit","vibrant"]},
+  blackHoney:       {ra:-0.5,f:[ 0.7,-0.3, 0.5, 0.0, 0.7, 0.5],no:["dark fruit","molasses","full body"]},
+  redHoney:         {ra:-0.4,f:[ 0.5, 0.0, 0.3, 0.0, 0.5, 0.5],no:["red fruit","syrupy","honey sweetness"]},
+  yellowHoney:      {ra:-0.2,f:[ 0.3, 0.2, 0.2, 0.0, 0.2, 0.3],no:["mild sweetness","clean","light honey"]},
+  whiteHoney:       {ra:-0.1,f:[ 0.2, 0.3, 0.1, 0.0, 0.0, 0.2],no:["delicate","clean","floral hints"]},
+  aquapulp:         {ra: 0.0,f:[ 0.0, 0.3, 0.0, 0.0, 0.0, 0.1],no:["clean","consistent","mild sweetness"]},
+  raisinHoney:      {ra:-0.5,f:[ 0.8,-0.5, 0.5, 0.0, 0.8, 0.5],no:["raisin","dried fruit","deep sweetness"]},
+  cryoMaceration:   {ra:-0.4,f:[ 0.3, 0.5, 1.0, 0.0, 0.2, 0.5],no:["aromatic","vivid fruit","distinctive"]},
+  experimental:     {ra:-0.3,f:[ 0.3, 0.3, 0.7, 0.0, 0.3, 0.3],no:["experimental","unique","complex"]},
+};
+
+const MF={
+  v60:[ 0.0, 0.5, 0.3,-0.3,-0.5, 0.0],espresso:[ 0.3,-0.5, 1.0, 1.0, 2.0, 0.5],
+  chemex:[ 0.0, 0.3, 0.3,-0.5,-0.7, 0.0],ristretto:[ 0.5,-0.7, 1.0, 0.5, 2.5, 0.5],
+  kalitaWave:[ 0.0, 0.3, 0.2,-0.3,-0.3, 0.0],lungo:[-0.3, 0.3, 0.5, 1.5, 1.0,-0.3],
+  binocularDripper:[ 0.0, 0.3, 0.2,-0.3,-0.3, 0.0],americano:[-0.5, 0.2, 0.5, 0.5, 0.0,-0.3],
+  aeropress:[ 0.2, 0.0, 0.3, 0.2, 0.5, 0.2],longBlack:[-0.3, 0.3, 0.7, 0.5, 0.5,-0.2],
+  frenchPress:[ 0.0,-0.3, 0.0, 0.3, 1.0, 0.0],siphon:[ 0.2, 0.5, 0.5,-0.3,-0.3, 0.3],
+  cleverDripper:[ 0.0, 0.0, 0.1, 0.0, 0.3, 0.0],mokaPotAl:[ 0.0,-0.3, 0.3, 0.5, 1.0, 0.0],
+  batchBrew:[ 0.0, 0.2, 0.2,-0.2,-0.3, 0.0],mokaPotInox:[ 0.0,-0.3, 0.3, 0.5, 1.0, 0.0],
+  coldBrew:[ 0.5,-1.0, 0.5,-1.0, 0.5, 0.5],nitroColdBrew:[ 0.7,-1.0, 0.7,-1.0, 1.0, 0.7],
+};
+
+const GD={"Extra-Fine":"powdered sugar texture","Fine":"table salt texture","Medium-Fine":"fine beach sand","Medium":"coarse sand","Medium-Coarse":"rough sand","Coarse":"coarse sea salt"};
+const SNAMES=["Mild","Light","Balanced","Strong","Bold"];
+const SOFF=[-2,-1,0,1,2];
+const V_TDS={geshaGeisha:0.04,yirgacheffe:0.03,wushWush:0.03,rumeSudan:0.04,sidra:0.03,fineRobusta:-0.05,timorHybrid:-0.03};
+const R_TDS={light:-0.06,mediumLight:-0.03,medium:0,mediumDark:0.03,dark:0.06};
+const P_TDS={washed:0,natural:-0.03,honey:-0.02,wetHulled:0.05,anaerobicNatural:-0.04,anaerobicWashed:-0.02};
+
+// MILK DRINKS DATA — real illustrated images
+const DRINK_ICONS={
+  espMacchiato:`<img src="data:image/webp;base64,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" alt="espMacchiato" style="width:100%;height:100%;object-fit:contain;display:block;">`,
+  cortado:`<img src="data:image/webp;base64,UklGRjAQAABXRUJQVlA4WAoAAAAQAAAAcQAAnwAAQUxQSNYIAAABv6egbSPnEv6sb/0gEBEZHMqlNElZpMpT+SdfEozbtpEUa/Z2tv+C1zOvLSCi/xNQ/yqpu1tSsKLtgG1Lgs8L4PM+UsEhiRVAsLCTJ4qTmt2p0hiT32QoaNvISfjDvvkDQERMAP+0BPsD0opDnjK4zeSjniTJlm1LkiQkqdoy/1EJyBzqoiVd0ceNvc95/49AI2ICfFHbtjzNtm3rfhxnAsGtRh0ncN3u7u7u7u6u8+7u95y7u1sv3J1AFbiaXhAi53nsEznbXjlyT3lETID/+//fvOWaerU3WkVGkDhFyxTl2vfqkwICCBKnqPPCOG5RG1gBI8bab/pGMbaPfUTORU41jKjekydq2hto7whqEjWNSWvEJMTWJhMCoArLOYGAqDpXClXDkrowly244s07hXBrNzuKVMzyqvek+Gf6k2fuSYUEM5cqJYAwLOaKLioWSoWiujBfjIrOhYorm27pG7HGWGuTiYSIEVtbnwxssj4pSXD6kDv9ylYI5EYNvvG93NaVQiFXcC6K8N8GJqiprzFtbXd4o7gCFRN+Jvzq61yrIIAAUgEt0ziNCly1yxBdxFTK8hm4VesnWv/2HhOVKb4bHfpgPgrVqXwkCdkdpFIBb4FThUcE04qW+W8YuCfxqSbY8OJJcDp34+1bmrKiVQFNUSmImX4ebKqh0pY7w9HUsj3QOWtcVYictNaCmuylHlilcobjORoOjZM4rk6rY6cQQMmEJ2CFygu1l6BrCoaTNaGAMNmXa28avvnv2FWWOAHrHmDIQHoRfeNOUhFEaeuyVxlhRzDxvzuoiZluOAgbaOUsqzC0mZOWLqq1BgSEiWNJdjdxlQtYgp7CGpH4sz6hgoJh6RRc2sHDOJlGDSqKwITRyMJ6wXRboAAmXE7DZlG0cpYMeqB5AgWU2Exr0dxzXS8W0xAE5fzuIKxhqbxhIyf29DhCvAbBmN2sw7RGJiYUcCzTDyv4efEC9MxjN+RcForsWCOkcyFXUWCSE7DohymuwnBmT+Zcrm2aYEJIsOXeoQhMNLdDBvXBsgwDxTVuzWaDuYY1JcugI4SACnPdgRbO+iEsQA8LcVuQOTdMojlzZpqrAjZa6EIuXvADltCTidk4JrmXEAbJNdcuCMrOVho298ULIQP1R0foEiLRmHtLImpFRSGKskYaVjH4eTYLvVN8S1rOhZHHJSw5q5ariDJDPywinmxlhKGV3ZjHsWjQ8RiKWZOBqiqTwTFlGU+trsJwtOrD8xJDa8e6rYWQsk6EuSMNSgb1Q1iCHmbsstAI1vJ+mAWNpiiW2W4obvoCC3CCkcvUvG9hsYMtSO6KypWNPsyFC74oK7gDB8bknLfNvdHD47xV1qIB2MyJN5mQYGhm34706tpiwRAr1+i2KH2wisGXzfOGoXP/RIISjSwmlmWljSo0KZvTLlhAfJHcJgzzs49cc7Gck+tisZiFhIhhJHVYWcRbwzIM8pPnJZaX63gsiSfU6Fh3yrGB+iJMwWkZKdOyls/mcfmisrXejxQy/iizRAeOj6lVpOze03x1x5KmMecu+LSqyA1L26LEx9znK+9QxumF9aLxKHPJciu3QNzMy+jdPtMBY/TAIgZv5Moa3IZ/xC3Rw5i9ebnL1TKeOA5zeGyYg37+Dgo022aXNnqY9pTd1El2qqs9YtknYRI93jymFiW2jGGEXZ7nDANlYb9XcGs4f5R5wrr+pQuiKJKFoMzrocuZoYwwgL28ifq0FBmGollUhDPKGaKn5bMJjNIHm5f9ypyz3E7+gRK73Gc+m+fdqGWibNVZPJL9ZRjSvyCqZYohXfYCY6xjm8ql6dpTMI94hGUaelJnChZhQq6zg+3YTBYZijK7d6ojYgbPpykdGDy/gFMiZGgxqUPO3Dfj+AenrWMN9UmZRUkzgkJBueacexibkTPD3xnG7q/6trgbcCv+RGwKHUN6OKMEpdnCJGnMxgW/HBdWDGn+XLJQrhmaz4a5bzaWlumBpZL1Cuvmobd2YQ4H6FUe121yrjWViUqov4/aTymzCF4LY0RHutz3RK8BsUwXO5bFDlCcfItj7RHTeD9JlOjly7viTJwsjsl6WEYLRYAw+PMf6RZlCfXLMV+y3Jr1d9kwISixuS4vl/OIDW3p9Y4bsHsrOL+UzLrldiQ++dEkoRjRMllYrMt9Luo0cM8dCRjGbFxEPTPFOUinQvum176zDY0Q6fjis6lYGH/Tb4NSoh9WI4PnhlHCo13q+NSpZz9yiPKP7da67OmbAvJ//tq394k4ctwxgXfKCJEZpvFB7dtwuzvdfvD4jz/4mv/++cvkmT+vwIG+BH21JSbx3tBVCrgj+fef+emPf3sT0Np2uPVw7YFmm0wFicCKqCsV8vnS/lZu99zO2e0SMHDHB9xvPSSN0QX/hMSK5fZS/P0hOP/86fwVR6UDXvKC00n4iOM2BDsr/mGZRPsP8nctSvIjX27JLpYEiVHQGAGJUVVgtM+5KPk8ErdGFm4S/wL+TrE1zahKZH/8hlbWtkWppHD0H40I0Z053h0xivXPMgLcXmYzJ4rJ5aeaYGtDVBX0+gQRCAoP/F4kYWLpDubWNSXOUIXC1OUkD9fC+z4K0Qe+s3fuChWu/8LDNYAXf83dj8BN4PzDbI1TuvPj3ece9/zbtnLz0tTk2uXtvVI+H0YucnHGBDaor2tuP3hq+O4dsDXy2e+TfnIUrM+hVRDwHXH6uZc27FLXe7Ln6MlGG+QLezvnL25e3NjSmCMHDxw7dLgtVWPzly5uZFbniyQf+J3GkN/kg2pIWuf2L+/tT/3sD9NrOfys7xq4273SCM8YigzVaLj94v7+7j5o9lJuO1vYyhbDSKNInSqggLGBDQJb29hSmzrQdLAZcEnyA0qVGg6/90yZ57rwxQmq14AdfPxA77G2tlQiVbEwX9i+nFmemXrHPNUsAbGmubaurSaRaglsEFhjRRVVxYlxLoqKxexeaXe7mC1RbqsKxASoU3wVIzjnqixeQASQW05BUZT/+/9fZwFWUDggNAcAABAiAJ0BKnIAoAA+USaQRaOiIZIKbWw4BQSygEK3KvjPdKg8oC9Z/1V/ljeb/z/0Afsl6znob3gf0AP2x9Nj9vfgu/s/+79Lb//9YBe5WQwHufVHIfJZgrBLjO8L+P3/Dfkz8N+eZ639gb9av+J2JPRI/WQoHd6ovEFMh6QwnemyT4aTBduTgSs+am5y2vUyO9OMCn52sOn73Mox1HWce1U+SF8aJoGzqp0XL3v8yUiScHY6/xKJZTRHmMRLgjQ4Lwe/qPLiJ6AKxiXQI1XVeKyZIVs/WZVBZolgV5TWlWHW/DSppQxpeT073T5Fm0fa8P0caJo/eGu7nn6tsgOdCxPO0RJ9UhYjlb52YSKlEhxr9gb7A32BvsBAAP79tOgAUPt5MVg/ju3iSd5MbBrTeXfzAiChcUW7JX2oZqLLQ4GHp777SI+tQg/J/M1jx0EmceT4jWaNuxkAr35wlnJ+dhC3wrpSB9OUJuSk3W3ivvHjUyJtbuzlSo271pPmJ0QZaChq9N+k8vrZR0l7N1wjMoqHx6tq/RNVNMpLb7Md/3fzdI+ucEtsa3nNkj1rBZNU6fCV1DRpGYDDDnhh6ZWiS7vGt+svgRJ5nTcSijlc/J+VnWIGuQd10DGRHvNTPji3xe3k5eMVNlVATNAH5p6tY34fzvJ1mB8c+RR+JSDtEtQVeAuKh3tMgnJHowixBCyVBPnsojUg+PC7j1MwjBMCqjMKZMxmUDXyOPbIgvSPJASebkH1/gF6wU1wW12ow7zECxF6/P6filfLCzM/b2f478GvhJR/wTu59JsSwuQ3ttF9bGOwjzAB0EVt7UVNPH/3dx8xK3MWuKZ9IkddPQ1Y2iTJ6FcfAV/bWtoUDeaWvHey5lvaRN8Cg7GaJTWZ3APujT1BCJD12tBcpaR/F8P9o+tNm+MZ1IAo2KjcMq6B1yPUJLAqgX25m0IzM7lCvyH1MbiX860zgDtqJas9J7AGR+lgqz1YlHc7AXl45R8EcM7FKjAoN4oQdMgjH2GW//275t/oxz6Rogn550uTVjB4fpCqNuZVih+iIhnqV1ZHVaogLRIztyjvoVfxcRcMS1Fnvr1luyKGGX7nLvvHItLu+O6+KEpbBfyryX+OQnYCfL64vzYX/9orwPKfsrAbK9I5IJ0OIdvXd7g/5omQzaLTOCkSQ24p39Knzcm4zXb1MNHZTcfPgoisP4fxHk1INyiNuvgS+mMq5TT3X9GQlVrowl2JwDRPWcVHFTEw3SEGs1b/4Urcvm3zm1pumb0QiXoGjbBrC9EAcr+pRLSnit5+31eqp11vmmCT1nqZROM2ny0vWiGaaovvyYEcMHDC+lG54oYLThFGDEnVTFqafqFHat/5cBffp27p8AIZ4PnltJB0Ct4+kBbqU76CneaYtJw7inaHSBgd4tYwqxOqFGwFnK5nHQnwKdZKDfw8jxE/7raz+xRATKIXG0Tn8mweDPB9MT2SAD7V6zTh+ws7zXze0XJ3rVmRx8cwuesBfuRp2/gCzv2VonEI6COKGWQXEAhLG5kd+M+LlILm/Pqp3UsHtg/ruIBAwoDdO0edrfpPGYCfsWrK7DL54a3V7QEFchwGA7ZlEOry9AFY5ajE2It9OndHJftM6TPLAvH2N0BomxdQXLsv/dS74wFlU/M1RBASvNTaAReD+B8iZwVS6RdB4XzF7U7HmIkL0+dOyQ+btq7LysVaR8Dx2ONLCZVqAWr8Kj21b7WSxLY95b2J1tRwL3GhqkOG04h+Z2p/W7rKkVwU2fVMvSzHFpaIFJYfpZE4Ez1VJO0M1DsIUd7u8+AYb8AaiL3otNcgjOmyPYlyaa5xJ1Wie9coZI8Rb5S/J0aPeu7rWXnl0Fpv6HwaC2TUz5pM9LepWdTiUmAC9MFC19schznuFbTzhYljC/PImj75BDP+VypYcwIy25VGrf7pFRSRAsckoC3rda8BwjPKMDYk8dvYmfPR2OPtHsOnFkNjcp+rnAUdM0Jn4Q8wTC4xxitoKzHgMWdzADzj9QQJu8XIgtAWrgKPk/GnKQuHqL8jA5HuS/DbYtG/74GKNz2YCccN7bwINCggF4vJxYEqkyJ+3S74qXDpuIqO67xwcaL9XlKJuKXBiPjUQ6sJbgWQyCVy5h5aw6Aa+2D8pot8wGGOgQvDW+P03pYjAS40gVcYB15ojFdpqexSlvXNrMdfPiWCKC5VWVUJhynVDSrDHiWUv4ItdwX+IRQLNaEENdCXCarhoaww6ujG9Y2QvNVMz1f4gcohUIo2QJGIlUUnyaTkgWcCB/8H9eYLmcguGtKRCEyfY3mjK0S3sPtYDRrS4cyLHdqJmVNYE/BcYMogS9VbuJbpUlQf9AFX7FpUADPbgn0M0gVioqjnEWgLLv36YyIhrInV1FOdUIRw9rNmyTnJVc6F9XdMiQw5s4otfBb7X4+1GAa/Xucqq2+J18bPMAAAAAAA" alt="cortado" style="width:100%;height:100%;object-fit:contain;display:block;">`,
+  flatWhite:`<img src="data:image/webp;base64,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" alt="flatWhite" style="width:100%;height:100%;object-fit:contain;display:block;">`,
+  cappuccino:`<img src="data:image/webp;base64,UklGRkwVAABXRUJQVlA4WAoAAAAQAAAAnwAAnwAAQUxQSLMHAAABDLVt2zDW/2+nlz0iJkCvAincEMEiChQk7FCiBKYkT89bw7bNkCTr/eKLrt5j27Zt27Zt27Zt+6xt27ZtKyPie35UVvVMZfb8O2cjYgJ81bYt27YkSY/VY/MQCAqhJCiSf5FvIZGdtXZtHzNZc68rACJiAnSN//9nopl77nVPtq6RPCetMGVP6wwpmyTlWz306W986zvf9fa3PP8Rt19PkiyndQDLJuk2z//alsdcypxXnrzdN194W0mWbXVLLumBX9j5Eqajlt4aTF+68+cfIMnTamXJXbrF+3b/VPd1f7Tpc1830HZ55y0kd1t1zLNL0l1+cA503R89VBW1AOf87AGSPCdbPcxdkpbv8eQfXQaltmm1jlqg/ONxy5KU3VYFd0mTh39w/RMKUII1aAeIAhz7z/fcL0nKaezMTbr+835zDNOtBgsZNYB26A+ftCyZ25i5pMf87BQgSmnBvB54ALRSAI753sMluY1VMi29dneglhZMxxwnFfMA0UoDdn75RPJxytKrD4YojWEGRCsBh75lIrcRct1vG6g1+MXvOw55jpRGx/XWy6iNEfQp8ItrK42M62tQWXjlWVEr+9xWaVRcn6A0emPDDmdOGoirOfrWSiPiehwlGNWOvZeTjUeyPSjMZuEFHllFx0eUR8P1KFrMCv26Wka0dsp1zMYi68t0cwzWHkHlGfKxcG1AAZVv+cZD9eMTNkkpJRuBpJ2o9HudlQf66bvq92wjYfh/qX76km53/4c88A4TST64HSkxLtWnww68DLji+P+8/oYyG9jmFEZV6wiAU94npSFl/X5tYeEl81YjIlorBba4sdKgvjOHM7Vaekcwu3Xsf4OUhvRBuilVOKC5xTdNDPNGXM0m8uG4XkgJQpUOa9sxnSk//SEfTNL9iGCpYlB2XiiNwiRqqdHT7R9LZkMx3eh8VlDppWbapxSV6Yjq02PlQ5Fpf+ocJqM3VKKlybxx5Y5/2bKi8acvKg8m6090PUq7ZpQTKDqocvOnu0t62mWorv4lH9C76WLoyVJpNDEoHTa5+4qUfKLv9DPcbTmgpIfSZn1Rm3pqRQaf/mnuUvY3TFxtNiDTtU+nZUCxY5WighJMNDfWcPVnZUlZ3+gnXP1OeTByrU9pTqrYMHtOT2qj8Si5ZL50LI0gCh8eUtY7KWalKZPjSqMtq8aJyzLZRJ+nMtV4hHw4SXe5Kja+aec0TQu/UDY3vaLVAGhx1MRsOErahWvGN17ceEaeSP5xWjBd+KiyhuvLevWsk36BCO4tXe9l+xDBdGtn38hsKOaSbvCmyhOrFysTGvv8eKPToAbT0fEmuQbqkp7y+zOI5lZHPfFEj1ulv2N9uYaZktJr9wLarDxxxPeCWkpjZuHQ6ycbhksv+Ht9ro8qSdkbGfRdVRaRlh3H3k5Jg8y64/p03RpV6eyk7MkDBZm02Tj0dnIN0vXCc6h3D515s4o2fWKDG8o1yKyPQ6EyMTls4pEtMz2/45dZaRBZn6c2yEq+YUfS0kQjjRaGGrvcSGkArtfTBSs9I6WSDJVEaUnVbF907HbtZAuX7M6X1cYa9UAEVcZJMVRKc6moVDS9mj/IF871dwpzmuksmmpb743C4+QLlnS7f7PzfaX32gIobLBwWa/r2vINQyvfUCbZmQYX3kS2aN9wddoB2lfZM9mFpDJpPFa+aD/px46tDGKSGTFQKlZloiSpSEQQJV6mvGjf6ConVKk0qiZ6rintqwypEhCVZ8sX7fXDG5XSF5W9kbQd0e6ptFhJd/4fr0i7nplkx/C8xbET04In/aXrkBkm+8pgIpJ2kROFryovmuthlIgpsaMlKjOVtiWTSmZpiq3WLri52dvk+h5dBCun0lTfVOmxRWUjOt4o1+vNl3amI1Z22oFNW+3sdvxergEm3exwOvo9s+OIlfZ1smPzJbchKOlWB9BFpV2zJTkzpdEJZeZi0/XMNEzXDTYhbpWNNVSEKCWVQu+89StX0lCT9Lna9cmJXajohbLF1f/+JDMN15Ie/de6Po0q9qCSCgsPVAZVrFz1t99/c9Ogs/KHzoHSgv5ZNCearh5q9TAKXPSZibKGnqRbf+diKJUAorfRrKRoXylSpakMAa3A5T+/s5Q0gi7d8RunQ6NXpE1NB9OoVEqYqUkEFc7/yd0kN42iuXSTtx5EISA0JZNt1URrehxQOORjt5E8aTSTS9c/mG6qkwbtSiXpoaIV/rIkedKo2pJuuROU6PHksA4r8MukJdPoJvmnL4LywUTlmZXmipTKfcdJr5SZxjhJd/rxJXTfGJBigSqSirTrc1X/+tSNlEwj7dKdv3YiUEuLYGYE0UMwg4igN/qi1QK0Hd94fck13sml6758g4uA1pUWAcFaj2i1BFD3+fwDJGXTqKcs6TZv+u8ZAFFKqS0CAoiVRbRaSmP6tPXfeW9J5qbRN0+SbvDkL25zOv2tlK6UUurs0tvov+TQv7/vkdeTpJy0Slp2Sbreg17zjY0OObeyxuOCI7b8wdsff2tNe05aVc1zUu+N7/mk17z3qz/91/rb7n3AAQcedOAB++208X9+9/WPvPbJ976pqdezm1ZjSzm71nLK2ZNpdbfkOefsnsxMkllyzzlnT2a6xv//FyoAVlA4IHINAACQNwCdASqgAKAAPlEmj0WjoiETCh0gOAUEsrdwuJiBa84RUOPLPaVwe46cy9UH6V3nn9g9B37Gfsd713pI/1PqAf27/AdYP6AHly+xr+7f7me1d//+sAzAfhH42/QvtL/X+Yo9d94P1n914sfVV5Jv9F+X3t0wZOXnw3/C9QL1x+i/6X8z/7jzp+IB+q3/E44Tzb2AP5f/aP+L7L/9b/1v85/kvTj9Df9f/NfAR/K/6n/wv7z+9Pxk+zP9yvZ6/V8puTftPvX8thcZbGrdJ9VVx5Wf+gCN2IDRlldFo3sDL6aWE4Q+bdGU6xWb/EPh4q9EhquZEUnZ6jpPhVqUSUCvoGx/c/ZZl7OBZqpdv6SBp335l26l5GRSMasAaT/m3OXI9lT2hSuaZFs1FUYmCXfJq4/rJA307gEfhe8HT0H2NkYjyLNwM3S5a75ceockpPZIwa5qoV3wIdRyNS4CtpOuBIf/kNdI90k5fMga6R/vpLZCJ9GEhvNnsND96kIBwIVKU6+DLTrdpaxi/8KdcFEGHN3/+aS39g8l/9QCPXrRFkA6h/ue3H++axpS5Bb4H+o34+5+eXTjpbLY2Al3+eVcm/afKAAA/v+eCAAht8ymnj0vUkD1Dl5YmEbYP70bm5ZQ+I089X+CZMxyV85Pf/8pJDF0vUnyfUoe6H+b64ETMoHaZlpa7CQmE8Z4Wz6Zmqe3+Tdioxw7PBEWG/egIyx2ZPf1fL/P541MQLXSqCgpKFLowh0RgsU2AWVX3cSn9Kkn4wAT6qyg3zuvo7DsvW+CNTnV/x4W2gB3f2OukwLxn8fcVxB8pTagVcEPk5kva1Qwz0uqSBO8CZ715IEfF+jELnkZEs4+hr6Iy2frjosEhZVOQ64EkZrhvifdOhdvl18rEQjEK64V97QqHT4KbchC4zTBukggP7a1N96fOEHqgK6oJA2669WfsT16YDIc932M6O1XJlc/4/Bjh83sUljepYgUrJiwy/OkzwCQEbJrLjTPyk6eBG2yHVKvw+8qlk6Jbe73LcAGtIyQJd/sFR0p7oGBvf81zLqVafDLsWGZ2f4lRMh1gYLVKbu87025sq58+AjzRlVwgMtJvsx2KwchyBZUBeFGR8w/tAj4rie+ylmVbsnVfs4rW0QId8kruAbcoEY9y5pcEMtChptvtkXyIL4n3ismJo+IQXksvHUXYVlDQ7YbW9JKC9tz1EzsjJ1lvxIlil7rDRCo3o6PvdE9nrMH3vaQPhWTHTFueX99V3Gl7FujXqRPJG4w4/pvRXH/S0ZFqBx9LUzWZM0Rf4bGu9XrZ1j/Ft+owqnXth0ZUnw22BCXasGpZqsQU8d7t035DBtVFvMMTwZ6uU3u5RGmq053RyHWYQZPrQJeFXD3jR+U6TFg6r7riyQSwNu1jWG/YEsfL/NTPhfTLIXeUshYgW5yDO75I9nd3/M/uDe0Nx8Sqr3GR8YeJFW3XGvtwWJBVAcsOGPezH6QRc4pqnHH8LY6TT+4Vi50IV9RsJXQ3BGee+EU6UBFv+lOdDJ5fCQZ8q96F9pf40G8UnvjCDGtI2Ng2AMIrVZlJOGxZUMphey0Apx8HLMEioHbzVXl9SPYLk6uCQjPSyYMDqh3z9Un231VGq+eq+nAh4u0HK8cuP0FNclNYA/yzaV9YOhnAzm7uWLkaHOfl6Ji/Uqp+WYJXOdNIxw8WFQ1ZjtgP2oG0UJ4+gVg2J0VudUjNpZ/vcGO0F7atn0ROIkXoAUe3yFi/iHyMJ5Y23h2xc0ZGdxhkDVqNTRFtRv2aKBPFqZ16cB9SH3p8MpWHsbuFQcOyMjr6iF3cQsHiJn0XFD2/hDI+e/ULKlQBK1XlbUA+WAGPgfN6vJlm/Ues5AO1rJigBIB5EO/239+ssq64D7a0524EqecV/0kQnvo0odRpXeNnGydUC870vaHq61FXDfZmxAgytu+GqWQnzOP14uqFkH31qH0h7TX7FXjpPk+C/xevT9gIghXJD37KzH51ysoFtLPTvveY6qjdXb7hAuk2YBEa0x3ltYKyjyyDjf7xWZzZ52fkrpnCfmPgZtQk9R3KYtAcNVIwPzta5rZgi8/RcQbzUkyeE330WFfHA3lBlNuTCztwVcLGC+RM/IjYWtv+wP7jAFJd5xf54XspcfL6/zihOs4EItvGRNxYuZDoL3SWcRi3UF8LX3AT24U2gP57vPziSg4QI3/xkZRkg01lZ2hebQz7tZeYKNdNzhJmTi2zACwxeAHm3ReQmMY2G3ccRTCbhDVpVxhq9TX0p2GMkMdXJJm4+jBWs+qJGzY5I028t+05gfV410FHb0YlkhAK01mvXc+iC9eyyrCFs78pHcuwFPnUbZf2RlQ4z07ADBS0EkQqjiXPa8OJN6YI7uhozsaccYJs71KzG7YUWfeOKoA/KrH0Al9ZFvwumPZQtMAVzldiNOpG7zgD5za1aR6dnDIRjXv4T5EIpIzV5NVd7JGyZ3xC+P3yy4jDPYItpOu3cxRO99Z9AdjLvA8fyTMKi5qE0deeYn0y03NNTL8NbEBbaxKth7H5T+icFYw2RL2QZqJ13eox9pQpre6G7ul/CVmweXaMfOLqLTGrbA41aXNfVpXU811JSqNdmGWeGtYrwgLGzQJFN5vk6/Vr4EiXLgvyhXYgHWnwI6xHq7pRM6G82ZcpKBfud/fqAsERkRg7MDeQctzeSfe3tw99jAls9NfJrXC2xmAsfEowexi6m2C7Mi3Jy0J7IzJas+qDN6vB5iYRPWNm4La/9EFVKpkTPlZTFLTzOC2UFHUEmIwWVyPuggcmRFC9ZY2d5r9o9hz+/E0ljWa/fpud7R8lhlHNbiIzlnXuxy6780CFlbZJfGlmVoPCsgZf8SLHz4lZ4MGo8rQRQR17dz1D4zmjAPwyJNymhUgRu7/2I7TamOxD0saFcrfm2yHaPj+Cv+po/MZbKv9BCXiXSgRa7DPTC9cCCE0mX+NRLJamdhNvBAD6G/97n01NpBrxbOYtCtZsmdsnPy8j+pLcPZrTRm4tRmBY/FIvoMQMpnst3H/ZMf8KYulbotDOIEK3cAyiFWV4Jxgt/FtHYiWVT4sYstRl6aOIAftEPLWEhcU1X98x3Q57QCpACGOjpET3rBYB25rlThpJT1qxRTgl1SjMQduCVo4s7He78vDtmhX8PpyOuhwWkDulDqnqIMt1WV/Y+/RJw9hjQ1je5C2VLvwR9eO9BBZqiOUDkfWOyC3YA3T7Ce9GdGz/EL5zahuGR75dvpILX0ockHNpIKhAV0mgolRldbOFiGsJOWmmNbVaG02/rU2uhMw/0OGCulkqup3j1bMq0hMWWIKHVeOASrLKYbPEd4n5bVUZLFIASdc3I4y4OIKTlvrVXCbyCMQCOFL3DEYJu9E8PX63bcTyw73VeKApVEH5XyJNL5HFGZv8pyawX1t+JMSyd5mfWbFPHcQuTweMxYJTgESMk8DxbSNGRnhJ6BWMPo5ctIBNS2Fu1L4az/3w8ItEJzdZh9KVvMDT+qd9kksIwWsjqPxaVxARaFsAFjZhQ1Bpg9EKrLU6xpRdLQBjn8NJmEvQEJlgBzPaTbx2xF0fm8ZpJUJaoKbNnRQqXr2mkRcLeH3yo2p16kGkbkA9P/en5S14QSzlCWZ9vuH+Q3rj0hGBjd0AnHweVaIyS5fnb5OTYzHcyLPaKvoTthcKl04OU4PMDYAmKM4w2c+xTd11xq9InB2Kuv+fov/XCLJF/Mq66vT39Av83Q9ev3Dkt/7lJsBaLmOx4O/0tOb/Skh/++oeGRLNC944fW0la4PT2jqofxvry2VXUy12fZ+WQJrmhzZrRoRsLh/vvn5Fy8ST6a6hNxvzGNQ7GyZNlGYUzGSITO1snuGixpLpzbi/YO1D9B2tRheoWmno9MFDch2I3NE+W1Clte6Hg+DlDf6G8f/hd4JWjolHq3ic2Ri0Hlk+wRLcgB98V4JodCHMBixrlhYml0b2fbPpHOCl781CRwP/Ap6BhtBqiMtQZ2nu7W02Xo0OG66Qb45baw0Y0AQkn9xlLFKzpDP9npEK+qaG0r4YeQHdUtvYJUlIhEigjKrwc8zPfUxF7yj5o8oqkDhJbMAXvZ4GXbKf5rwLT+gwro10cr7rXYrxr7rgya1A6uCIOFpzDrhNbtMTDpfpfgxZhcjBf09oSAsLbkD+E/fBJoHvwUEgC4fZf3snGCBssA3o+8mxhf7/kVKkWyl4/v/LyYB8CgtMhYhopiFsIBykyC9H/XFLcJVI7wgnCICK5HnA9w6Zf8Zi2k/hRnCCsxHUtIAX4K6nu+ntC1ybHgTvTN9XMSEI2lU79vZudj8tlNy18saS4Q1DojuxQYAXcmkcfsx9QQzrb3abWZ5VxlIwX+LQ0+Md98N1B0iLxXln4eO1H85RaFGw1DdUed7zAItNOqUVY3PQx0lvbBgczS4hJxKosx2Q4+3tK0IzPZ+ZRLtB9oIZgZy7EXwmJlVsH1WeZeD18uSrx6b/KDLNPZXWZJ5BmnHjOMbpbx7hWvQ5PWyLk0L5zYBD0XBfcoYPvJIbE/57xEeNJbxK1bSuo0CcoD2nCcdtLQMfgV3EfpE3AAAAAAA" alt="cappuccino" style="width:100%;height:100%;object-fit:contain;display:block;">`,
+  latte:`<img src="data:image/webp;base64,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" alt="latte" style="width:100%;height:100%;object-fit:contain;display:block;">`,
+  latteM:`<img src="data:image/webp;base64,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" alt="latteM" style="width:100%;height:100%;object-fit:contain;display:block;">`,
+};
+const DRINKS={
+  espMacchiato:{n:"Espresso Macchiato",icon:'espMacchiato',sub:"Just a mark of foam",shot:"single",dose:9,ratio:2.0,cup:30,
+    foamFrac:0.85,steamT:62,
+    specialty:"Espresso with a tiny 'macchia' (mark) of foam. The purist's choice — pure espresso character with a silky crown.",
+    milkAdj:{sw:0.1,ac:-0.1,ar:-0.1,bi:-0.1,bo:0.2,fi:0.1},
+    steamGuide:"Steam just 50ml of milk with the wand fully submerged — you want dense, silky foam with almost no liquid milk. Spoon a generous dollop directly on the espresso."},
+  cortado:{n:"Cortado",icon:'cortado',sub:"Equal parts espresso & milk",shot:"double",dose:18,ratio:2.0,cup:90,
+    foamFrac:0.1,steamT:58,
+    specialty:"The word 'cortar' means 'to cut' — the milk cuts the espresso's acidity. Specialty standard: warm milk only, minimal foam, intimate 90ml cup.",
+    milkAdj:{sw:0.4,ac:-0.6,ar:-0.3,bi:-0.4,bo:0.5,fi:0.2},
+    steamGuide:"Steam cold milk to exactly 55–60°C — no higher. Create silky microfoam with very little air incorporation. You want pourable, warm milk with just a thin glossy surface, not cappuccino foam."},
+  flatWhite:{n:"Flat White",icon:'flatWhite',sub:"Double shot, velvety microfoam",shot:"double",dose:18,ratio:1.8,cup:150,
+    foamFrac:0.06,steamT:60,
+    specialty:"Born in Australia/NZ. Smaller cup (150ml), stronger coffee concentration, and ultra-velvety microfoam with a very thin layer of texture. Often finished with latte art.",
+    milkAdj:{sw:0.5,ac:-0.8,ar:-0.5,bi:-0.5,bo:0.8,fi:0.3},
+    steamGuide:"Fill pitcher to just below the spout. Steam to 60°C with minimal air — 2 seconds of paper-tearing sound at the surface, then deep swirl for silky microfoam. No thick foam layers."},
+  cappuccino:{n:"Cappuccino",icon:'cappuccino',sub:"⅓ espresso · ⅓ milk · ⅓ foam",shot:"double",dose:18,ratio:2.0,cup:180,
+    foamFrac:0.45,steamT:65,
+    specialty:"Classic Italian: equal thirds espresso, steamed milk, and thick foam (minimum 1cm). The foam acts as an insulator — 'wet' or 'dry' depending on foam density.",
+    milkAdj:{sw:0.7,ac:-0.9,ar:-0.6,bi:-0.6,bo:1.0,fi:0.4},
+    steamGuide:"Stretch milk with more air than a flat white — 4–6 seconds of surface sound to build foam. Heat to 65°C. The foam should hold its shape but still be pourable. Tap and swirl pitcher to remove bubbles before pouring."},
+  latte:{n:"Café Latte",icon:'latte',sub:"Double shot, lots of steamed milk",shot:"double",dose:18,ratio:2.0,cup:240,
+    foamFrac:0.07,steamT:62,
+    specialty:"The most popular espresso-milk drink. Large milk volume showcases milk quality. Just 1–2cm of microfoam. Specialty focus: balance between espresso intensity and milk sweetness.",
+    milkAdj:{sw:1.0,ac:-1.2,ar:-0.8,bi:-0.8,bo:1.2,fi:0.3},
+    steamGuide:"Steam 200ml+ of cold milk. Just 2–3 seconds of surface stretching for thin microfoam. Heat to 62°C. The milk should be glossy and flowing, not foamy. Pour in a slow, steady stream."},
+  latteM:{n:"Latte Macchiato",icon:'latteM',sub:"Layered milk with espresso",shot:"double",dose:18,ratio:2.0,cup:240,
+    foamFrac:0.25,steamT:62,
+    specialty:"Milk stained by espresso — the opposite of an espresso macchiato. Pour the steamed milk first (creating a foam cap), then slowly pour the espresso through the foam to create beautiful distinct layers.",
+    milkAdj:{sw:1.0,ac:-1.2,ar:-0.8,bi:-0.8,bo:1.2,fi:0.3},
+    steamGuide:"Steam milk with moderate foam to 62°C. Pour milk into a tall glass first to create a foam top. Then slowly pour espresso through the foam — it will sink creating a beautiful dark brown middle layer."},
+};
+
+const CUP_PRESETS=[
+  {ml:30,n:"30ml"},
+  {ml:90,n:"90ml"},
+  {ml:120,n:"120ml"},
+  {ml:150,n:"150ml"},
+  {ml:180,n:"180ml"},
+  {ml:240,n:"240ml"},
+  {ml:360,n:"360ml"},
+];
+
+const MILK_TYPES={
+  whole:  {n:"Whole Milk",    adj:{sw:0.5,bo:0.4,ac:-0.1,bi:-0.2},note:"Rich, naturally sweet. Best body and fat for microfoam. The specialty standard."},
+  oat:    {n:"Oat Milk",      adj:{sw:0.8,bo:0.3,ac:-0.1,bi:-0.1},note:"Sweet, cereal character. Excellent microfoam. Oat sweetness complements coffee well."},
+  almond: {n:"Almond Milk",   adj:{sw:0.2,bo:-0.1,ac:0.1,bi:0.1}, note:"Lighter, nutty undertone. Thinner foam. Works best in cortado/macchiato."},
+  soy:    {n:"Soy Milk",      adj:{sw:0.3,bo:0.2,ac:-0.1,bi:0.2},  note:"Neutral, slight beany note. Good foam but can curdle with very acidic shots."},
+  coconut:{n:"Coconut Milk",  adj:{sw:0.6,bo:0.1,ac:-0.1,bi:-0.1}, note:"Tropical sweetness. Thinner foam than whole milk. Distinct coconut character."},
+  pea:    {n:"Pea Milk",      adj:{sw:0.2,bo:0.5,ac:-0.1,bi:0.0},  note:"Neutral, creamy and high-protein. Surprisingly good foam — close to whole milk. Very low environmental impact."},
+};
+
+// State
+let activeDrink='cortado', activeMilk='whole', activeCupMl=90, activeShotType='double';
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+function cl(v,a,b){return Math.max(a,Math.min(b,v))}
+function r1(v){return Math.round(v*10)/10}
+function r0(v){return Math.round(v)}
+
+function populateSelect(sel, data, selectedVal){
+  sel.innerHTML='';
+  Object.entries(data).forEach(([k,v])=>{
+    const o=document.createElement('option');
+    o.value=k; o.textContent=v.n||v;
+    if(k===selectedVal)o.selected=true;
+    sel.appendChild(o);
+  });
+}
+function populateSelectArr(sel, arr, selectedVal){
+  sel.innerHTML='';
+  arr.forEach(({v,n})=>{
+    const o=document.createElement('option');
+    o.value=v; o.textContent=n;
+    if(v===selectedVal)o.selected=true;
+    sel.appendChild(o);
+  });
+}
+
+function buildDrinkGrid(){
+  const g=document.getElementById('drinkGrid');
+  g.innerHTML='';
+  Object.entries(DRINKS).forEach(([k,d])=>{
+    const b=document.createElement('div');
+    b.className='drink-btn'+(k===activeDrink?' active':'');
+    const iconSvg=DRINK_ICONS[d.icon]||'';
+    b.innerHTML=`<div class="drink-icon">${iconSvg}</div><div class="drink-name">${d.n}</div><div class="drink-sub">${d.sub}</div>`;
+    b.onclick=()=>selectDrink(k,b);
+    g.appendChild(b);
+  });
+}
+
+function buildCupPresets(){
+  const c=document.getElementById('cupPresets');
+  c.innerHTML='';
+  CUP_PRESETS.forEach(({ml,n})=>{
+    const b=document.createElement('button');
+    b.className='cup-btn'+(ml===activeCupMl?' active':'');
+    b.textContent=n;
+    b.onclick=()=>{activeCupMl=ml;document.getElementById('m-cupMl').value=ml;updateCupBtns();milkCalc();};
+    c.appendChild(b);
+  });
+}
+function updateCupBtns(){
+  document.querySelectorAll('.cup-btn').forEach((b,i)=>{
+    b.classList.toggle('active',CUP_PRESETS[i]&&CUP_PRESETS[i].ml===activeCupMl);
+  });
+}
+
+function selectDrink(k, btn){
+  activeDrink=k;
+  document.querySelectorAll('.drink-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const d=DRINKS[k];
+  // Update defaults
+  if(d.shot==='single'){setShot('single');}else{setShot('double');}
+  document.getElementById('m-dose').value=d.dose;
+  document.getElementById('m-ratio').value=d.ratio;
+  activeCupMl=d.cup;
+  document.getElementById('m-cupMl').value=d.cup;
+  buildCupPresets();
+  milkCalc();
+}
+
+function setShot(type){
+  activeShotType=type;
+  document.getElementById('shot-single').classList.toggle('active',type==='single');
+  document.getElementById('shot-double').classList.toggle('active',type==='double');
+  // Specialty coffee standards: single=9g, double=18g
+  if(type==='single'){document.getElementById('m-dose').value=9;}
+  else{document.getElementById('m-dose').value=18;}
+  milkCalc();
+}
+
+function setMilk(type, btn){
+  activeMilk=type;
+  document.querySelectorAll('.milk-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  milkCalc();
+}
+
+function switchTab(id, btn){
+  document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  btn.classList.add('active');
+  // Scroll to just below sticky header+tabs
+  const headerH=(document.querySelector('header')?.offsetHeight||56)+(document.getElementById('tabNav')?.offsetHeight||44);
+  window.scrollTo({top:headerH-8,behavior:'smooth'});
+}
+
+function toggleCollapsible(hdr){
+  hdr.classList.toggle('open');
+  const body=document.getElementById('espCollBody');
+  body.classList.toggle('open');
+}
+
+// ═══════════════════════════════════════════════════════
+// BREW CALCULATOR
+// ═══════════════════════════════════════════════════════
+function onBrewMethodChange(){
+  const mk=document.getElementById('b-method').value;
+  const isEsp=['espresso','ristretto','lungo','americano','longBlack'].includes(mk);
+  document.getElementById('b-espSection').style.display=isEsp?'block':'none';
+  document.getElementById('b-strengthField').style.display=isEsp?'none':'block';
+  updateBrewTdsBadge();
+  brewCalc();
+}
+
+function updateBrewTdsBadge(){
+  const v=parseFloat(document.getElementById('b-tds').value);
+  const badge=document.getElementById('b-tdsBadge');
+  if(!v||isNaN(v)){badge.style.display='none';return;}
+  const m=M[document.getElementById('b-method').value];
+  const [lo,hi]=m.tdsRange;
+  badge.style.display='inline-flex';
+  if(v<lo){badge.className='tds-badge tds-low';badge.textContent='⬇ Below ('+lo+'–'+hi+'%)';}
+  else if(v>hi){badge.className='tds-badge tds-high';badge.textContent='⬆ Above ('+lo+'–'+hi+'%)';}
+  else{badge.className='tds-badge tds-ok';badge.textContent='✓ On target';}
+}
+
+function brewCalc(){
+  const dose=parseFloat(document.getElementById('b-dose').value)||18;
+  const mk=document.getElementById('b-method').value;
+  const rk=document.getElementById('b-roast').value;
+  const pk=document.getElementById('b-processing').value||'washed';
+  const vk=document.getElementById('b-variety').value||'bourbon';
+  const si=parseInt(document.getElementById('b-strength').value)||2;
+  const basket=document.querySelector('input[name="b-basket"]:checked')?.value||'nonPressurized';
+  const adv=document.getElementById('b-adv').checked;
+  const userTds=parseFloat(document.getElementById('b-tds').value)||null;
+
+  const m=M[mk],ro=R[rk]||R.medium,p=P[pk]||P.washed,v=V[vk]||V.bourbon;
+  const isPress=basket==='pressurized';
+
+  const rAdj=m.esp?0:ro.ra, pAdj=m.esp?0:p.ra, sAdj=m.esp?0:SOFF[si];
+  const bAdj=isPress?0.1:0;
+  const ratio=cl(m.br+rAdj+pAdj+sAdj+bAdj,m.rng[0],m.rng[1]);
+  const water=r1(dose*ratio);
+
+  const tBase=m.cold?null:Math.round((m.t[0]+m.t[1])/2-(rk==='dark'?2:rk==='mediumDark'?1:0));
+  const tC=isPress&&tBase?Math.min(tBase,92):tBase;
+  const tempStr=m.cold?"Cold/room temp (4–20°C)":`${tC}°C (${Math.round(tC*9/5+32)}°F)`;
+  const dilW=m.am?Math.round(water*4):0;
+
+  const fl=(MF[mk]||[0,0,0,0,0,0]).map((mfAdj,i)=>cl(r1(v.f[i]+mfAdj+ro.f[i]+(p.f||[0,0,0,0,0,0])[i]),0,5));
+
+  const vTdsMod=V_TDS[vk]||0, rTdsMod=R_TDS[rk]||0, pTdsMod=P_TDS[pk]||0;
+  const [tLo,tHi]=m.tdsRange;
+  const adjLo=r1(tLo+vTdsMod+rTdsMod+pTdsMod);
+  const adjHi=r1(tHi+vTdsMod+rTdsMod+pTdsMod);
+
+  let gr=m.gr, grNote=GD[gr]||'';
+  if(m.esp&&isPress){gr='Fine–Medium-Fine';grNote='Pressurized basket is forgiving — aim slightly finer than table salt.';}
+
+  renderBrewResults({dose,water,ratio,mk,m,rk,pk,vk,v,p,ro,si,isPress,adv,tempStr,tC,dilW,gr,grNote,fl,userTds,adjLo,adjHi});
+}
+
+function renderBrewResults({dose,water,ratio,mk,m,rk,pk,vk,v,p,ro,si,isPress,adv,tempStr,dilW,gr,grNote,fl,userTds,adjLo,adjHi}){
+  const rLabel=m.esp?`1 : ${ratio.toFixed(2)}`:`1 : ${ratio.toFixed(1)}`;
+
+  // TDS box
+  let tdsHtml='';
+  if(userTds&&!isNaN(userTds)){
+    if(userTds<adjLo) tdsHtml=`<div class="info-box red-box"><strong class="box-label">&#9660; TDS Low — ${userTds}% (target ${adjLo}–${adjHi}%)</strong>Under-extracted or too dilute. Try: grind <strong>finer</strong>, increase dose by 0.5g, or check water temperature. For espresso, check for channelling.</div>`;
+    else if(userTds>adjHi) tdsHtml=`<div class="info-box amber-box"><strong class="box-label">&#9650; TDS High — ${userTds}% (target ${adjLo}–${adjHi}%)</strong>Over-extracted or too concentrated. Try: grind <strong>coarser</strong>, reduce dose, or add slightly more water.</div>`;
+    else tdsHtml=`<div class="info-box green-box"><strong class="box-label">&#10003; TDS On Target — ${userTds}% (${adjLo}–${adjHi}%)</strong>Ideal extraction zone for this combination. Excellent!</div>`;
+  } else {
+    tdsHtml=`<div class="info-box"><strong class="box-label">&#9711; TDS Reference — ${m.n} / ${v.n} / ${ro.l}</strong>Target TDS: <strong>${adjLo}–${adjHi}%</strong> &nbsp;&middot;&nbsp; Ideal Extraction: <strong>${m.extRange[0]}–${m.extRange[1]}%</strong><br><span style="font-size:.76rem;color:var(--text-muted)">Enter your refractometer reading in the panel to get personalised advice.</span></div>`;
+  }
+
+  const amBox=m.am?`<div class="info-box"><strong class="box-label">Assembly</strong>Pull <strong>${water}g</strong> espresso, then add ~<strong>${dilW}ml</strong> hot water. For Long Black, pour shot INTO the water to preserve crema.</div>`:'';
+  let grindBox=m.esp?`<div class="info-box"><strong class="box-label">Grind Size Recommendation</strong>${isPress?'Pressurized basket: slightly finer than table salt. The dual-wall design is forgiving.':`Non-pressurized: <strong>${gr}</strong> (${grNote}). Precision matters — adjust in half-steps and weigh every shot.`}</div>`:'';
+
+  let advBox='';
+  if(m.esp&&adv){
+    const pt=isPress?'Standard Profile: Full 9-bar pressure start to finish. The pressurized basket manages resistance — no profiling needed.'
+      :rk==='light'||rk==='mediumLight'?'&#x2460; Pre-infuse 3–4 bar / 6–8 sec &#8594; &#x2461; Ramp to 9 bar / 4 sec &#8594; &#x2462; Hold 9 bar through ~20 sec &#8594; &#x2463; Decline to 6 bar. Lower pre-infusion coaxes sweetness from light roasts.'
+      :rk==='dark'?'&#x2460; Pre-infuse 6 bar / 4 sec &#8594; &#x2461; Ramp to 8 bar (not 9!) / 3 sec &#8594; &#x2462; Hold through 25 sec &#8594; &#x2463; Decline to 5 bar. Lower peak pressure prevents bitter over-extraction.'
+      :'&#x2460; Pre-infuse 4 bar / 5–6 sec &#8594; &#x2461; Ramp to 9 bar / 4 sec &#8594; &#x2462; Hold 9 bar through 25 sec &#8594; &#x2463; Ramp down to 6 bar / last 8 sec. Classic 9-bar profile with soft landing.';
+    advBox=`<div class="info-box"><strong class="box-label">Suggested Advanced Pressure Profile</strong>${pt}</div>`;
+  }
+
+  const [sw,ac,ar,bi,bo,fi]=fl;
+  const swD=sw<2?'subtle sweetness':sw<3?'mild sweetness':sw<4?'pleasant sweetness':sw<4.5?'prominent sweetness':'exceptional sweetness';
+  const acD=ac<1.5?'very smooth, low acidity':ac<2.5?'mild, pleasant acidity':ac<3.5?'medium, lively acidity':ac<4.5?'bright, vibrant acidity':'intense, sparkling acidity';
+  const boD=bo<1.5?'light, tea-like body':bo<2.5?'light-to-medium body':bo<3.5?'medium, balanced body':bo<4.5?'full, rich body':'very full, syrupy body';
+  const ov=(sw>=4&&ac>=4)?'complex and vibrant':sw>=4?'sweetly luxurious':ac>=4.5?'bright and electric':bo>=4.5?'full-bodied and lush':ar>=4.5?'aromatically stunning':'beautifully balanced';
+  const pno=(p.no||['balanced'])[0];
+  const ftxt=`Expect to taste: A ${ov} ${m.n} with prominent notes of <strong>${v.no[0]}</strong> and <strong>${v.no[1]||v.no[0]}</strong>${v.no[2]?`, with hints of <strong>${v.no[2]}</strong>`:''}. The ${pno} character from the processing delivers a <strong>${acD}</strong> and a <strong>${boD}</strong>.`;
+
+  const ratBox=m.esp?`<div class="rationale-box"><strong class="box-label">Expert Rationale</strong>This recipe balances the ${sw>=4?'sweetness':'character'} of ${v.n} (avg. SCA ${v.sca}) with a ${rk} roast and ${(P[pk]?.no||['balanced'])[0]} processing. The 1:${ratio.toFixed(2)} ratio targets a ${fi>=4?'rich, lingering':'concentrated, balanced'} shot. ${isPress?'Pressurized basket simplifies extraction.':'Non-pressurized basket rewards dialling-in.'}${adv?' Use the pressure profile above for maximum precision.':''}</div>`:'';
+
+  document.getElementById('b-results').innerHTML=`
+    <div class="ratio-pill">Ratio <span>${rLabel}</span></div>
+    <div class="rg">
+      <div class="st"><div class="sv">${dose}g</div><div class="su">coffee</div><div class="sl">Dose</div></div>
+      <div class="st"><div class="sv">${water}g</div><div class="su">${m.esp?'esp. yield':'water'}</div><div class="sl">Water / Yield</div></div>
+      <div class="st"><div class="sv" style="font-size:.95rem;padding-top:.2rem">${m.ti}</div><div class="su"></div><div class="sl">Brew Time</div></div>
+      <div class="st"><div class="sv" style="font-size:.82rem;padding-top:.16rem">${gr}</div><div class="su"></div><div class="sl">Grind</div></div>
+      <div class="st w2"><div class="sv" style="font-size:.78rem;padding-top:.14rem">${tempStr}</div><div class="su"></div><div class="sl">Water Temp</div></div>
+    </div>
+    ${tdsHtml}${amBox}${grindBox}${advBox}
+    <div class="flavor-sect">
+      <div class="flavor-desc"><div class="fd-label">&#9749; Expected Flavor Profile</div>${ftxt}</div>
+      <div class="chart-wrap"><div class="chart-title">Flavor Profile — 0 to 5 scale</div><canvas id="rc-brew" width="230" height="230"></canvas></div>
+    </div>
+    ${ratBox}`;
+
+  renderVarietyCard(vk,v,'b');
+  drawRadar('rc-brew',fl,'#2d5a1b');
+  renderBrewSteps({dose,water,mk,m,rk,tempStr,gr,grNote,isPress,adv});
+}
+
+function renderVarietyCard(vk,v,pfx){
+  const el=document.getElementById(pfx+'-varietyCard');
+  document.getElementById(pfx+'-varietyContent').innerHTML=`
+    <div class="variety-header">
+      <div><div class="variety-title">${v.n}</div><div class="variety-subtitle">${v.grp||''} &middot; ${v.org||''}</div></div>
+      <div class="sca-badge"><div class="sca-num">${v.sca||'—'}</div><div class="sca-lbl">SCA avg.</div></div>
+    </div>
+    <div class="variety-tags">
+      ${[v.grp,v.org].filter(Boolean).map(t=>`<span class="vtag">${t}</span>`).join('')}
+      ${(v.no||[]).map(t=>`<span class="vtag amber">${t}</span>`).join('')}
+    </div>
+    <div class="variety-notes">${v.desc||''}</div>`;
+  el.style.display='block';
+}
+
+function renderBrewSteps({dose,water,mk,m,rk,tempStr,gr,grNote,isPress,adv}){
+  const steps=getBrewSteps(mk,dose,water,tempStr,gr,grNote,isPress,adv);
+  document.getElementById('b-steps').innerHTML=steps.map((s,i)=>`<li class="step"><div class="step-num">${i+1}</div><div>${s}</div></li>`).join('');
+  document.getElementById('b-guideCard').style.display='block';
+}
+
+function getBrewSteps(mk,dose,water,tempStr,gr,grNote,isPress,adv){
+  const b=`<strong>Grind</strong> <strong>${dose}g</strong> of freshly roasted beans to <strong>${gr}</strong> (${grNote}).`;
+  if(['v60','kalitaWave','binocularDripper'].includes(mk))return[b,
+    `<strong>Heat ${water}ml of water</strong> to <strong>${tempStr}</strong>. Rinse paper filter and discard rinse water.`,
+    `<strong>Bloom:</strong> Pour <strong>${Math.round(dose*2.5)}g of water</strong> in a slow spiral. Wait 35–45 seconds.`,
+    `<strong>Continue pouring</strong> in 2–3 stages, keeping the slurry surface wet. Finish all pours by 2:30.`,
+    `<strong>Drawdown</strong> in 3–4 min total. Grind coarser if faster, finer if slower.`];
+  if(mk==='chemex')return[b,
+    `<strong>Heat ${water}ml of water</strong> to <strong>${tempStr}</strong>. Fold filter (3 layers toward spout), rinse, discard.`,
+    `<strong>Bloom:</strong> Pour <strong>${Math.round(dose*2.5)}g water</strong> and wait 45 seconds.`,
+    `<strong>Pour slowly</strong> every 30–45 sec until reaching <strong>${water}g total</strong>.`,
+    `<strong>Drawdown</strong> in 4–5 min. Remove filter and serve.`];
+  if(mk==='espresso')return[b,
+    `<strong>Warm your machine</strong> for 15+ min. Flush the group head. Target <strong>${tempStr}</strong>.`,
+    isPress?`<strong>Load and tamp</strong> <strong>${dose}g</strong> lightly. Pressurized basket is forgiving — light even pressure.`
+           :`<strong>Distribute and tamp</strong> <strong>${dose}g</strong> with ~15kg even pressure. A level puck is critical.`,
+    `<strong>Lock in and start.</strong> Target yield: <strong>${water}g</strong> in <strong>25–30 seconds</strong> (specialty standard).`,
+    adv?`<strong>Follow the pressure profile</strong> above for maximum flavour clarity.`
+       :`<strong>Taste and dial in:</strong> Sour & fast = finer grind. Bitter & slow = coarser. Adjust in 0.5g steps.`];
+  if(mk==='ristretto')return[b,
+    `<strong>Heat machine</strong> to <strong>${tempStr}</strong>. Flush group head.`,
+    `<strong>Dose and tamp</strong> <strong>${dose}g</strong> firmly and evenly.`,
+    `<strong>Pull the shot</strong>, stopping at <strong>${water}g</strong>. Expect 15–25 sec.`,
+    `<strong>Taste:</strong> Should be syrupy-sweet, concentrated. If bitter, grind slightly coarser.`];
+  if(mk==='lungo')return[b,
+    `<strong>Heat machine</strong> to <strong>${tempStr}</strong>. Flush group head.`,
+    `<strong>Dose and tamp</strong> <strong>${dose}g</strong>. Use slightly coarser grind than standard espresso.`,
+    `<strong>Pull until reaching</strong> <strong>${water}g</strong>. Expect 30–45 sec.`,
+    `<strong>Serve immediately.</strong> Lungo has more bitterness — caramel/nut varieties work best.`];
+  if(['americano','longBlack'].includes(mk))return[b,
+    `<strong>Pull espresso</strong> yielding <strong>${water}g</strong> in 25–30 sec at ${tempStr}.`,
+    mk==='longBlack'
+    ?`<strong>Long Black:</strong> Add ~${Math.round(water*4)}ml hot water to cup first, then pour espresso shot into it.`
+    :`<strong>Americano:</strong> Pour espresso into cup, then add ~${Math.round(water*4)}ml hot water. Adjust to taste.`,
+    `<strong>Serve immediately</strong> while crema is intact.`];
+  if(mk==='aeropress')return[b,
+    `<strong>Heat ${water}ml of water</strong> to <strong>${tempStr}</strong>. Rinse filter. Use inverted method for control.`,
+    `<strong>Add coffee</strong>, pour all <strong>${water}g</strong>, stir gently 10 sec.`,
+    `<strong>Steep 1:30–2 min.</strong> Attach cap and flip onto cup.`,
+    `<strong>Press steadily</strong> over 30 seconds. Stop at the first hiss.`];
+  if(mk==='frenchPress')return[b,
+    `<strong>Heat ${water}ml of water</strong> to <strong>${tempStr}</strong>. Preheat the press and discard.`,
+    `<strong>Add coffee</strong>, pour all <strong>${water}g</strong>, stir gently.`,
+    `<strong>Steep exactly 4 minutes</strong> with lid on (plunger up).`,
+    `<strong>Press slowly</strong> over 30 sec. Pour all immediately — leaving on grounds over-extracts.`];
+  if(mk==='cleverDripper')return[b,
+    `<strong>Heat ${water}ml of water</strong> to <strong>${tempStr}</strong>. Rinse filter.`,
+    `<strong>Add coffee</strong>, pour all <strong>${water}g water</strong>. Lid on. Steep <strong>2–3 minutes</strong>.`,
+    `<strong>Place on cup</strong> to release valve. Let drain ~1 min.`,
+    `<strong>Longer steep = stronger</strong>, more body. Shorter = cleaner cup.`];
+  if(mk==='siphon')return[b,
+    `<strong>Fill bottom chamber</strong> with <strong>${water}ml pre-heated water</strong>. Attach filter to upper chamber.`,
+    `<strong>Apply heat.</strong> Water rises. Add coffee once water is fully up.`,
+    `<strong>Stir gently</strong> and maintain heat 1–1:30 min.`,
+    `<strong>Remove heat.</strong> Coffee draws back through filter. Pour and enjoy within 2 min.`];
+  if(['mokaPotAl','mokaPotInox'].includes(mk))return[b,
+    `<strong>Fill bottom chamber</strong> with <strong>${water}ml hot water</strong> just below the safety valve.`,
+    `<strong>Fill basket</strong> with <strong>${dose}g</strong>, level off — do not tamp. Screw together firmly.`,
+    `<strong>Heat on medium-low</strong>, lid open. Watch for slow, steady flow.`,
+    `<strong>Remove from heat</strong> when stream turns pale golden. Cool base under cold water.`];
+  if(mk==='batchBrew')return[b,
+    `<strong>Fill reservoir</strong> with <strong>${water}ml filtered water</strong>.`,
+    `<strong>Insert filter</strong> and add <strong>${dose}g ground coffee</strong>. Level gently.`,
+    `<strong>Start cycle.</strong> Brew time: 5–8 min.`,
+    `<strong>Serve from thermal carafe</strong> within 20 minutes.`];
+  if(['coldBrew','nitroColdBrew'].includes(mk))return[b,
+    `<strong>Combine ${dose}g coffee</strong> with <strong>${water}ml cold water</strong> in a large jar.`,
+    `<strong>Stir</strong> to saturate. Refrigerate for <strong>18–24 hours</strong>.`,
+    `<strong>Strain</strong> through cheesecloth or paper filter.`,
+    mk==='nitroColdBrew'?`<strong>Charge with N₂</strong> using a whipped cream dispenser. Serve cold from a tilted pour.`
+    :`<strong>Store refrigerated</strong> up to 2 weeks. Dilute 1:1 for concentrate-style brewing.`];
+  return[b];
+}
+
+// ═══════════════════════════════════════════════════════
+// MILK DRINKS CALCULATOR
+// ═══════════════════════════════════════════════════════
+function milkCalc(){
+  const d=DRINKS[activeDrink];
+  if(!d) return;
+
+  const dose=parseFloat(document.getElementById('m-dose').value)||d.dose;
+  const ratio=parseFloat(document.getElementById('m-ratio').value)||d.ratio;
+  const cupManual=parseFloat(document.getElementById('m-cupMl').value)||0;
+  const cupMl=cupManual>0?cupManual:activeCupMl;
+  const rk=document.getElementById('m-roast').value;
+  const pk=document.getElementById('m-processing').value||'washed';
+  const vk=document.getElementById('m-variety').value||'bourbon';
+  const basket=document.querySelector('input[name="m-basket"]:checked')?.value||'nonPressurized';
+  const adv=document.getElementById('m-adv').checked;
+  const milk=MILK_TYPES[activeMilk];
+
+  const ro=R[rk]||R.medium, p=P[pk]||P.washed, v=V[vk]||V.bourbon;
+  const isPress=basket==='pressurized';
+
+  // Espresso
+  const espYield=r1(dose*ratio);
+  const tBase=Math.round((91+93)/2-(rk==='dark'?2:rk==='mediumDark'?1:0));
+  const tC=isPress?Math.min(tBase,92):tBase;
+  const tempStr=`${tC}°C (${Math.round(tC*9/5+32)}°F)`;
+
+  // Milk volumes
+  const totalCup=Math.max(cupMl,espYield+10);
+  const milkTotal=r0(totalCup-espYield);
+  const foamMl=r0(milkTotal*d.foamFrac);
+  const steamedMl=milkTotal-foamMl;
+
+  // Base espresso flavor
+  const espFl=(MF['espresso']||[0,0,0,0,0,0]).map((a,i)=>cl(r1(v.f[i]+a+ro.f[i]+(p.f||[0,0,0,0,0,0])[i]),0,5));
+
+  // Milk dilution factor (coffee fraction of cup)
+  const dilutionFactor=espYield/totalCup; // 0–1, higher = more coffee character
+
+  // Apply milk adjustments (scaled by milk fraction)
+  const milkFrac=1-dilutionFactor;
+  const ma=d.milkAdj, milkT=milk.adj;
+  const milkFl=espFl.map((base,i)=>{
+    const keys=['sw','ac','ar','bi','bo','fi'];
+    const milkDrinkAdj=(ma[keys[i]]||0)*milkFrac;
+    const milkTypeAdj=(milkT[keys[i]]||0)*(milkFrac*0.6);
+    return cl(r1(base+milkDrinkAdj+milkTypeAdj),0,5);
+  });
+
+  // Ratio display
+  const coffeeRatio=r1(espYield/totalCup*100);
+  const milkRatio=100-coffeeRatio;
+
+  // Specialty notes
+  const gr=isPress?'Fine–Medium-Fine':'Extra-Fine';
+  const grNote=isPress?'Pressurized basket is forgiving.':'Like powdered sugar texture.';
+
+  renderMilkResults({d,dose,ratio,espYield,milkTotal,steamedMl,foamMl,totalCup,
+    coffeeRatio,milkRatio,tempStr,rk,pk,vk,v,p,ro,isPress,adv,gr,grNote,milkFl,milk});
+}
+
+function renderMilkResults({d,dose,ratio,espYield,milkTotal,steamedMl,foamMl,totalCup,
+    coffeeRatio,milkRatio,tempStr,rk,pk,vk,v,p,ro,isPress,adv,gr,grNote,milkFl,milk}){
+
+  const [sw,ac,ar,bi,bo,fi]=milkFl;
+  const acD=ac<2?'low, smooth acidity':ac<3?'mild, pleasant acidity':ac<4?'medium acidity':'bright acidity';
+  const boD=bo<2?'light body':bo<3?'medium-light body':bo<4?'medium, creamy body':'full, rich body';
+  const swD=sw<2.5?'subtle sweetness':sw<3.5?'mild sweetness':sw<4?'pleasant sweetness':'sweet character';
+
+  const ftxt=`A ${d.n} with <strong>${swD}</strong> and a <strong>${boD}</strong>. The ${milk.n} adds ${(milk.adj.sw||0)>0.4?'natural sweetness and':'richness and'} complements the coffee's <strong>${(V[vk]||V.bourbon).no[0]}</strong> character. Expect a <strong>${acD}</strong> and a lingering, smooth finish.`;
+
+  // Cup SVG diagram
+  const cupSvg=buildCupSvg(espYield,steamedMl,foamMl,totalCup,d);
+
+  // Advanced espresso box — full detail matching brew tab
+  let advBox='';
+  if(adv){
+    const pressProfile=isPress
+      ?'Standard Espresso Profile: Full pressure (9 bars) from start to finish. The pressurized basket handles resistance — no complex profiling needed. A simple flow restriction at ~3 ml/s works well.'
+      :rk==='light'||rk==='mediumLight'
+        ?'&#x2460; Pre-infuse at 3–4 bar for 6–8 sec &#8594; &#x2461; Ramp to 9 bar over 4 sec &#8594; &#x2462; Hold 9 bar through ~20 sec &#8594; &#x2463; Decline to 6 bar for final 10 sec. Lower pre-infusion coaxes sweetness from light roasts.'
+        :rk==='dark'
+          ?'&#x2460; Pre-infuse at 6 bar for 4 sec &#8594; &#x2461; Ramp to 8 bar (not 9!) over 3 sec &#8594; &#x2462; Hold through 25 sec &#8594; &#x2463; Decline to 5 bar. Lower peak pressure prevents bitter over-extraction on dark roasts.'
+          :'&#x2460; Pre-infuse at 4 bar for 5–6 sec &#8594; &#x2461; Ramp to 9 bar over 4 sec &#8594; &#x2462; Hold 9 bar through 25 sec &#8594; &#x2463; Ramp down to 6 bar for last 8 sec. Classic 9-bar profile with a soft landing.';
+    const grindAdvice=isPress
+      ?'For a pressurized basket, aim for a grind slightly finer than table salt. The dual-wall design is forgiving — a medium-fine setting is a good starting point.'
+      :`For a non-pressurized basket, grind <strong>Extra-Fine</strong> (like powdered sugar texture). Precision matters — adjust in half-steps and weigh every shot.`;
+    const tBase2=Math.round((91+93)/2-(rk==='dark'?2:rk==='mediumDark'?1:0));
+    const tC2=isPress?Math.min(tBase2,92):tBase2;
+    advBox=`
+    <div class="info-box" style="border-left:3px solid var(--forest)">
+      <strong class="box-label">&#9889; Espresso Grind &amp; Extraction</strong>
+      ${grindAdvice}<br>
+      <span style="font-size:.76rem;color:var(--text-muted)">Target: <strong>${dose}g</strong> dose → <strong>${espYield}ml</strong> yield in <strong>25–30 sec</strong> at <strong>${tC2}°C (${Math.round(tC2*9/5+32)}°F)</strong></span>
+    </div>
+    <div class="info-box" style="border-left:3px solid var(--leaf-mid)">
+      <strong class="box-label">&#9889; Suggested Advanced Pressure Profile</strong>
+      ${pressProfile}
+    </div>
+    <div class="rationale-box">
+      <strong class="box-label">Expert Rationale</strong>
+      This espresso base for your ${d.n} balances the ${(V[vk]||V.bourbon).no[0]} character of ${(V[vk]||V.bourbon).n} (SCA ${(V[vk]||V.bourbon).sca}) with a ${rk} roast and ${(P[pk]?.no||['balanced'])[0]} processing. The 1:${ratio.toFixed(2)} ratio at ${dose}g delivers a ${espYield}ml shot that ${['cortado','espMacchiato'].includes(activeDrink)?'stands out through the milk rather than being overwhelmed by it':'integrates harmoniously with the steamed milk'}. ${isPress?'Pressurized basket simplifies extraction and produces beautiful crema.':'Non-pressurized basket rewards careful dialling-in.'}
+    </div>`;
+  }
+
+  document.getElementById('m-results').innerHTML=`
+    <div class="specialty-note"><strong>&#9733; ${d.n}</strong> &nbsp;—&nbsp; ${d.specialty}</div>
+
+    <div class="milk-result-top">
+      <div class="cup-diagram">
+        ${cupSvg}
+        <div class="cup-legend">
+          <div class="cup-legend-item"><div class="cup-legend-dot" style="background:#3a1a08"></div><span>Espresso</span></div>
+          <div class="cup-legend-item"><div class="cup-legend-dot" style="background:#c4a882"></div><span>Milk</span></div>
+          ${foamMl>0?`<div class="cup-legend-item"><div class="cup-legend-dot" style="background:#ece7dd"></div><span>Foam</span></div>`:''}
+        </div>
+      </div>
+      <div class="milk-stats-col" style="min-width:0;flex:1">
+        <div class="ratio-pill">${coffeeRatio}% coffee &nbsp;·&nbsp; <span>${milkRatio}%</span> milk</div>
+        <div class="milk-rg">
+          <div class="st"><div class="sv">${dose}g</div><div class="su">coffee</div><div class="sl">Dose</div></div>
+          <div class="st"><div class="sv">${espYield}ml</div><div class="su">espresso</div><div class="sl">Shot</div></div>
+          <div class="st"><div class="sv">${steamedMl}ml</div><div class="su">steamed</div><div class="sl">Milk</div></div>
+          <div class="st"><div class="sv">${foamMl}ml</div><div class="su">texture</div><div class="sl">Foam</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <strong class="box-label">Volume Breakdown</strong>
+      Espresso: <strong>${espYield}ml</strong> &nbsp;&middot;&nbsp; Milk: <strong>${steamedMl}ml</strong> &nbsp;&middot;&nbsp; Foam: <strong>${foamMl}ml</strong> &nbsp;&middot;&nbsp; Total: <strong>${totalCup}ml</strong><br>
+      Espresso temp: <strong>${tempStr}</strong> &nbsp;&middot;&nbsp; Milk target: <strong>${d.steamT}°C (${Math.round(d.steamT*9/5+32)}°F)</strong>
+    </div>
+
+    <div class="info-box amber-box">
+      <strong class="box-label">&#9749; Steaming Guide — ${d.n}</strong>
+      ${d.steamGuide}<br><br>
+      <span style="font-size:.75rem;color:var(--text-muted)"><strong>Milk:</strong> ${milk.n} — ${milk.note}</span>
+    </div>
+
+    ${advBox}
+
+    <div class="flavor-sect">
+      <div class="flavor-desc">
+        <div class="fd-label">Expected Flavor Profile with ${milk.n}</div>
+        ${ftxt}
+      </div>
+      <div class="chart-wrap">
+        <div class="chart-title">Flavor Profile (milk-adjusted) — 0 to 5 scale</div>
+        <canvas id="rc-milk" width="260" height="260"></canvas>
+      </div>
+    </div>`;
+
+  renderVarietyCard(vk,V[vk]||V.bourbon,'m');
+  drawRadar('rc-milk',milkFl,'#2d5a1b');
+  renderMilkSteps({d,dose,ratio,espYield,milkTotal,steamedMl,foamMl,tempStr,gr,grNote,isPress,adv});
+}
+
+function buildCupSvg(espMl,steamMl,foamMl,totalMl,d){
+  const H=130,W=70;
+  const topW=W, botW=48;
+  const espH=Math.max(8,Math.round((espMl/totalMl)*H));
+  const foamH=Math.max(foamMl>3?8:0,Math.round((foamMl/totalMl)*H));
+  const steamH=H-espH-foamH;
+  // trapezoid cup shape
+  const tl=`${(W-topW)/2}`, tr=`${(W+topW)/2}`;
+  const bl=`${(W-botW)/2}`, br=`${(W+botW)/2}`;
+  const clipId='cupc'+Math.random().toString(36).slice(2,6);
+  return `<svg viewBox="0 0 ${W} ${H+12}" xmlns="http://www.w3.org/2000/svg" style="width:80px;filter:drop-shadow(0 2px 6px rgba(0,0,0,.12))">
+    <defs>
+      <clipPath id="${clipId}">
+        <polygon points="${tl},2 ${tr},2 ${br},${H+2} ${bl},${H+2}"/>
+      </clipPath>
+    </defs>
+    <polygon points="${tl},2 ${tr},2 ${br},${H+2} ${bl},${H+2}" fill="#f0ece4" clip-path="url(#${clipId})"/>
+    <rect x="${tl}" y="${2+foamH+steamH}" width="${topW}" height="${espH}" fill="#3a1a08" clip-path="url(#${clipId})"/>
+    <rect x="${tl}" y="${2+foamH}" width="${topW}" height="${steamH}" fill="#c4a882" clip-path="url(#${clipId})"/>
+    ${foamH>0?`<rect x="${tl}" y="2" width="${topW}" height="${foamH}" fill="#f0ece4" clip-path="url(#${clipId})"/>`:''}
+    <polygon points="${tl},2 ${tr},2 ${br},${H+2} ${bl},${H+2}" fill="none" stroke="#a89070" stroke-width="1.5"/>
+    <line x1="${bl}" y1="${H+2}" x2="${br}" y2="${H+2}" stroke="#a89070" stroke-width="2"/>
+  </svg>`;
+}
+
+function renderMilkSteps({d,dose,ratio,espYield,milkTotal,steamedMl,foamMl,tempStr,gr,grNote,isPress,adv}){
+  const milkName=MILK_TYPES[activeMilk].n;
+  const foamDesc=d.foamFrac>0.35?'thick, cappuccino-style foam':d.foamFrac>0.12?'moderate microfoam':d.foamFrac>0.02?'thin, velvety microfoam':'minimal foam (just a gloss)';
+  const tampDesc=isPress?`Load <strong>${dose}g</strong> and tamp lightly and evenly. The pressurized basket is forgiving.`:`Distribute and tamp <strong>${dose}g</strong> with ~15kg even, level pressure. A level puck is critical.`;
+
+  // ─── ESPRESSO STEPS ──────────────────────────────────
+  const espSteps=[
+    `<strong>Grind</strong> <strong>${dose}g</strong> of freshly roasted beans to <strong>${gr}</strong> (${grNote}).`,
+    `<strong>Warm your machine</strong> for at least 15 min. Flush the group head with a blank shot. Target <strong>${tempStr}</strong>.`,
+    `${tampDesc}`,
+    `<strong>Lock in and start extraction.</strong> Target <strong>${espYield}ml</strong> yield in <strong>25–30 seconds</strong>. ${adv?'Follow the pressure profile above.':'Taste and adjust: sour/fast = finer grind; bitter/slow = coarser.'}`,
+  ];
+
+  // ─── MILK STEPS ──────────────────────────────────────
+  const assemblySteps=getAssemblySteps(d,espYield,steamedMl,foamMl);
+  const milkSteps=[
+    `<strong>Prepare ${milkTotal+10}ml of cold ${milkName}</strong> in a clean, cold pitcher. Cold milk gives you more time to create microfoam before it reaches temperature.`,
+    `<strong>Steam to ${d.steamT}°C (${Math.round(d.steamT*9/5+32)}°F)</strong>. Technique: ${d.foamFrac>0.3?'introduce air for 4–6 seconds (paper-tearing sound) then submerge deep to spin the foam':d.foamFrac>0.08?'brief 2–3 sec stretching at the surface then deep swirl':'keep wand submerged throughout — minimal air, maximum silk'}. You need <strong>${foamDesc}</strong>. Tap pitcher and swirl to remove large bubbles.`,
+    ...assemblySteps,
+    `<strong>Serve immediately</strong> within 30 seconds of steaming. ${MILK_TYPES[activeMilk].note}`,
+  ];
+
+  // Build HTML with section headers
+  const espIcon=`<svg viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="7" cy="9" r="5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M4 9 Q5 7 7 9 Q9 11 10 9" stroke="currentColor" stroke-width="1" fill="none"/><path d="M5 4 Q5 2 7 2 Q9 2 9 4" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>`;
+  const milkIcon=`<svg viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="2" width="6" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.3"/><line x1="4" y1="6" x2="10" y2="6" stroke="currentColor" stroke-width="1" opacity="0.6"/></svg>`;
+
+  let html=`<div class="step-section esp">${espIcon} Espresso — Pull Your Shot</div>`;
+  html+=espSteps.map((s,i)=>`<li class="step"><div class="step-num">${i+1}</div><div>${s}</div></li>`).join('');
+  html+=`<div class="step-section milk">${milkIcon} Milk &amp; Assembly — Build Your ${d.n}</div>`;
+  html+=milkSteps.map((s,i)=>`<li class="step"><div class="step-num">${i+1}</div><div>${s}</div></li>`).join('');
+
+  document.getElementById('m-steps').innerHTML=html;
+  document.getElementById('m-guideCard').style.display='block';
+}
+
+function getAssemblySteps(d,espMl,steamMl,foamMl){
+  if(d===DRINKS.latteM){
+    return[`<strong>Pour steamed milk first</strong> into a tall glass (~${steamMl}ml), letting foam settle on top.`,
+           `<strong>Slowly pour espresso</strong> through the foam in the centre — it will create beautiful dark layers.`];}
+  if(d===DRINKS.cortado){
+    return[`<strong>Pour espresso</strong> into the cup.`,
+           `<strong>Pour ~${steamMl}ml warm milk</strong> gently into the shot. Spoon ${foamMl}ml foam on top.`];}
+  if(d===DRINKS.espMacchiato){
+    return[`<strong>Pull espresso (${espMl}ml)</strong> into a warmed demitasse.`,
+           `<strong>Spoon foam</strong> gently on top — just enough to create a visible white mark on the dark espresso.`];}
+  return[`<strong>Pour espresso (${espMl}ml)</strong> into warmed cup.`,
+         `<strong>Pour steamed milk (${steamMl}ml)</strong> in a steady stream, then finish with foam cap (${foamMl}ml).`];
+}
+
+// ═══════════════════════════════════════════════════════
+// RADAR CHART
+// ═══════════════════════════════════════════════════════
+function drawRadar(canvasId, scores, color){
+  requestAnimationFrame(()=>{
+    const c=document.getElementById(canvasId); if(!c)return;
+    const ctx=c.getContext('2d');
+    const W=c.width,H=c.height,cx=W/2,cy=H/2,Rmax=Math.min(W,H)*.36;
+    const lbls=['Sweetness','Acidity','Aroma','Bitterness','Body','Finish']; const n=lbls.length;
+    ctx.clearRect(0,0,W,H);
+    for(let lv=1;lv<=5;lv++){
+      ctx.beginPath();
+      for(let i=0;i<n;i++){const a=(Math.PI*2/n)*i-Math.PI/2,r=Rmax*(lv/5);i===0?ctx.moveTo(cx+r*Math.cos(a),cy+r*Math.sin(a)):ctx.lineTo(cx+r*Math.cos(a),cy+r*Math.sin(a));}
+      ctx.closePath(); ctx.strokeStyle=lv===5?'rgba(45,90,27,.28)':'rgba(0,0,0,.06)'; ctx.lineWidth=lv===5?1.5:1; ctx.stroke();
+    }
+    for(let i=0;i<n;i++){const a=(Math.PI*2/n)*i-Math.PI/2; ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+Rmax*Math.cos(a),cy+Rmax*Math.sin(a)); ctx.strokeStyle='rgba(0,0,0,.07)'; ctx.lineWidth=1; ctx.stroke();}
+    ctx.beginPath();
+    for(let i=0;i<n;i++){const a=(Math.PI*2/n)*i-Math.PI/2,r=Rmax*(scores[i]/5); i===0?ctx.moveTo(cx+r*Math.cos(a),cy+r*Math.sin(a)):ctx.lineTo(cx+r*Math.cos(a),cy+r*Math.sin(a));}
+    ctx.closePath(); const c1=color||'#2d5a1b';
+    ctx.fillStyle=c1.replace(')',',0.14)').replace('rgb(','rgba(').replace('#','').length===6?c1+'22':c1+'22';
+    // simpler fill:
+    ctx.fillStyle='rgba(45,90,27,0.14)'; ctx.fill();
+    ctx.strokeStyle=c1; ctx.lineWidth=2; ctx.stroke();
+    for(let i=0;i<n;i++){const a=(Math.PI*2/n)*i-Math.PI/2,r=Rmax*(scores[i]/5); const x=cx+r*Math.cos(a),y=cy+r*Math.sin(a); ctx.beginPath(); ctx.arc(x,y,3.5,0,Math.PI*2); ctx.fillStyle=c1; ctx.fill(); ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.stroke();}
+    ctx.font='bold 10.5px sans-serif'; ctx.fillStyle='#1d3a18'; ctx.textAlign='center';
+    for(let i=0;i<n;i++){const a=(Math.PI*2/n)*i-Math.PI/2,lr=Rmax+20; ctx.fillText(lbls[i],cx+lr*Math.cos(a),cy+lr*Math.sin(a)+3.5);}
+    ctx.font='9.5px sans-serif'; ctx.fillStyle='rgba(45,90,27,.85)';
+    for(let i=0;i<n;i++){const a=(Math.PI*2/n)*i-Math.PI/2,r=Rmax*(scores[i]/5); if(scores[i]>0) ctx.fillText(scores[i].toFixed(1),cx+r*Math.cos(a)+Math.cos(a)*13,cy+r*Math.sin(a)+Math.sin(a)*13+3);}
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded',()=>{
+  // Fix sticky tab nav position dynamically
+  const hdr=document.querySelector('header');
+  const tabNav=document.getElementById('tabNav');
+  function updateTabTop(){
+    if(hdr&&tabNav) tabNav.style.top=hdr.offsetHeight+'px';
+  }
+  updateTabTop();
+  window.addEventListener('resize',updateTabTop);
+  // Populate variety selects
+  const vEntries=Object.entries(V);
+  ['b-variety','m-variety'].forEach(id=>{
+    const sel=document.getElementById(id);
+    // Group by grp
+    const groups={};
+    vEntries.forEach(([k,v])=>{if(!groups[v.grp])groups[v.grp]=[];groups[v.grp].push([k,v]);});
+    Object.entries(groups).forEach(([grpName,items])=>{
+      const og=document.createElement('optgroup');og.label=grpName;
+      items.forEach(([k,v])=>{const o=document.createElement('option');o.value=k;o.textContent=v.n;if(k==='bourbon')o.selected=true;og.appendChild(o);});
+      sel.appendChild(og);
+    });
+  });
+
+  // Populate processing selects
+  ['b-processing','m-processing'].forEach(id=>{
+    const sel=document.getElementById(id);
+    PROC_OPTS.forEach(({v,n})=>{const o=document.createElement('option');o.value=v;o.textContent=n;if(v==='honey')o.selected=true;sel.appendChild(o);});
+  });
+
+  // TDS listener
+  document.getElementById('b-tds').addEventListener('input',updateBrewTdsBadge);
+  document.getElementById('m-cupMl').addEventListener('change',()=>{
+    activeCupMl=parseFloat(document.getElementById('m-cupMl').value)||activeCupMl;
+    updateCupBtns();milkCalc();
+  });
+
+  buildDrinkGrid();
+  buildCupPresets();
+  onBrewMethodChange();
+  brewCalc();
+  milkCalc();
+});
+</script>
+</body>
+</html>
