@@ -525,6 +525,22 @@ canvas{max-width:100%;width:260px;height:auto}
           <label class="radio-opt"><input type="radio" name="b-basket" value="pressurized"><div class="radio-opt-text">Pressurized (Dual-Wall)<small>This fundamentally changes how espresso is brewed.</small></div></label>
         </div>
       </div>
+
+      <!-- TURBO SHOT TOGGLE -->
+      <div class="field">
+        <label class="field-label">Shot Recipe</label>
+        <div class="shot-toggle" style="margin-top:.32rem">
+          <button class="shot-btn active" id="b-shot-standard" onclick="setBrewShotType('standard',this)">Standard</button>
+          <button class="shot-btn" id="b-shot-turbo" onclick="setBrewShotType('turbo',this)">&#9889; Turbo Shot</button>
+        </div>
+        <div id="b-turboNote" style="display:none;margin-top:.5rem">
+          <div class="info-box" style="background:#fffbf0;border-color:#f0c040;padding:.65rem .88rem">
+            <strong class="box-label" style="color:#a08000">&#9889; Turbo Shot Mode</strong>
+            High ratio (1:3–1:4), very coarse grind, fast extraction (8–14 sec) at full 9-bar pressure. Produces a bright, clean, sweet espresso with lower bitterness. Pioneered by Scott Rao &amp; Sprometheus.
+          </div>
+        </div>
+      </div>
+
       <label class="checkbox-opt">
         <input type="checkbox" id="b-adv">
         <div class="checkbox-opt-text"><strong>Advanced Espresso Controls</strong>Supports pressure, flow, and/or temperature profiling.</div>
@@ -666,6 +682,21 @@ canvas{max-width:100%;width:260px;height:auto}
           </div>
         </div>
         <label class="checkbox-opt"><input type="checkbox" id="m-adv"><div class="checkbox-opt-text"><strong>Advanced Espresso Controls</strong>Pressure/flow/temperature profiling.</div></label>
+
+        <!-- TURBO SHOT in milk tab -->
+        <div class="field" style="margin-top:.6rem">
+          <label class="field-label">Shot Recipe</label>
+          <div class="shot-toggle" style="margin-top:.32rem">
+            <button class="shot-btn active" id="m-shot-standard" onclick="setMilkShotType('standard',this)">Standard</button>
+            <button class="shot-btn" id="m-shot-turbo" onclick="setMilkShotType('turbo',this)">&#9889; Turbo Shot</button>
+          </div>
+          <div id="m-turboNote" style="display:none;margin-top:.5rem">
+            <div class="info-box" style="background:#fffbf0;border-color:#f0c040;padding:.65rem .88rem">
+              <strong class="box-label" style="color:#a08000">&#9889; Turbo Shot</strong>
+              High ratio (1:3–1:4), coarser grind, 8–14 sec extraction. The extra yield integrates beautifully with milk — brighter and less bitter than a standard shot.
+            </div>
+          </div>
+          </div>
       </div>
     </div>
 
@@ -885,6 +916,7 @@ const MILK_TYPES={
 
 // State
 let activeDrink='cortado', activeMilk='whole', activeCupMl=90, activeShotType='double';
+let brewTurbo=false, milkTurbo=false;
 
 // ═══════════════════════════════════════════════════════
 // INIT
@@ -892,6 +924,38 @@ let activeDrink='cortado', activeMilk='whole', activeCupMl=90, activeShotType='d
 function cl(v,a,b){return Math.max(a,Math.min(b,v))}
 function r1(v){return Math.round(v*10)/10}
 function r0(v){return Math.round(v)}
+
+// ── TURBO SHOT ─────────────────────────────────────────
+// Turbo shot: ratio 1:3.5 default, grind Medium-Fine for espresso,
+// extraction 8–14 sec at full 9-bar. Lower TDS, higher yield, bright/sweet.
+const TURBO={
+  ratio: 3.5,           // default yield ratio (adjustable)
+  ratioRange: [3,4.5],  // sensible range
+  grind: 'Medium-Fine', // much coarser than standard espresso
+  grindNote: 'coarser than standard espresso — think fine drip coffee. This is what makes the turbo shot fast.',
+  time: '8–14 sec',
+  pressure: '9 bar (full, no ramp)',
+  tdsRange: [5,9],      // lower TDS than standard espresso due to higher yield
+  extRange: [22,28],    // higher extraction % (similar to filter coffee)
+  // flavor modifiers vs standard espresso: brighter, less bitter, more sweet
+  flavorMod: [0.4, 0.7, 0.3, -1.2, -0.5, 0.2], // [sw,ac,ar,bi,bo,fi]
+};
+
+function setBrewShotType(type, btn){
+  brewTurbo=(type==='turbo');
+  document.getElementById('b-shot-standard').classList.toggle('active',!brewTurbo);
+  document.getElementById('b-shot-turbo').classList.toggle('active',brewTurbo);
+  document.getElementById('b-turboNote').style.display=brewTurbo?'block':'none';
+  brewCalc();
+}
+
+function setMilkShotType(type, btn){
+  milkTurbo=(type==='turbo');
+  document.getElementById('m-shot-standard').classList.toggle('active',!milkTurbo);
+  document.getElementById('m-shot-turbo').classList.toggle('active',milkTurbo);
+  document.getElementById('m-turboNote').style.display=milkTurbo?'block':'none';
+  milkCalc();
+}
 
 function populateSelect(sel, data, selectedVal){
   sel.innerHTML='';
@@ -1024,87 +1088,132 @@ function brewCalc(){
   const basket=document.querySelector('input[name="b-basket"]:checked')?.value||'nonPressurized';
   const adv=document.getElementById('b-adv').checked;
   const userTds=parseFloat(document.getElementById('b-tds').value)||null;
+  const isTurbo=brewTurbo&&['espresso','ristretto','lungo','americano','longBlack'].includes(mk);
 
   const m=M[mk],ro=R[rk]||R.medium,p=P[pk]||P.washed,v=V[vk]||V.bourbon;
   const isPress=basket==='pressurized';
 
-  const rAdj=m.esp?0:ro.ra, pAdj=m.esp?0:p.ra, sAdj=m.esp?0:SOFF[si];
-  const bAdj=isPress?0.1:0;
-  const ratio=cl(m.br+rAdj+pAdj+sAdj+bAdj,m.rng[0],m.rng[1]);
-  const water=r1(dose*ratio);
+  let ratio, water, grStr, grNoteStr, timeStr, adjLo, adjHi;
+
+  if(isTurbo){
+    // Turbo shot overrides ratio, grind, timing, TDS
+    ratio=TURBO.ratio;
+    water=r1(dose*ratio);
+    grStr=TURBO.grind;
+    grNoteStr=TURBO.grindNote;
+    timeStr=TURBO.time;
+    const vTdsMod=V_TDS[vk]||0, rTdsMod=R_TDS[rk]||0;
+    adjLo=r1(TURBO.tdsRange[0]+vTdsMod+rTdsMod);
+    adjHi=r1(TURBO.tdsRange[1]+vTdsMod+rTdsMod);
+  } else {
+    const rAdj=m.esp?0:ro.ra, pAdj=m.esp?0:p.ra, sAdj=m.esp?0:SOFF[si];
+    const bAdj=isPress?0.1:0;
+    ratio=cl(m.br+rAdj+pAdj+sAdj+bAdj,m.rng[0],m.rng[1]);
+    water=r1(dose*ratio);
+    grStr=m.gr; grNoteStr=GD[grStr]||'';
+    if(m.esp&&isPress){grStr='Fine–Medium-Fine';grNoteStr='Pressurized basket is forgiving — aim slightly finer than table salt.';}
+    timeStr=m.ti;
+    const vTdsMod=V_TDS[vk]||0, rTdsMod=R_TDS[rk]||0, pTdsMod=P_TDS[pk]||0;
+    const [tLo,tHi]=m.tdsRange;
+    adjLo=r1(tLo+vTdsMod+rTdsMod+pTdsMod);
+    adjHi=r1(tHi+vTdsMod+rTdsMod+pTdsMod);
+  }
 
   const tBase=m.cold?null:Math.round((m.t[0]+m.t[1])/2-(rk==='dark'?2:rk==='mediumDark'?1:0));
   const tC=isPress&&tBase?Math.min(tBase,92):tBase;
   const tempStr=m.cold?"Cold/room temp (4–20°C)":`${tC}°C (${Math.round(tC*9/5+32)}°F)`;
   const dilW=m.am?Math.round(water*4):0;
 
-  const fl=(MF[mk]||[0,0,0,0,0,0]).map((mfAdj,i)=>cl(r1(v.f[i]+mfAdj+ro.f[i]+(p.f||[0,0,0,0,0,0])[i]),0,5));
+  // Flavor — turbo modifies toward brighter/sweeter/less bitter
+  const baseFl=(MF[mk]||[0,0,0,0,0,0]).map((mfAdj,i)=>cl(r1(v.f[i]+mfAdj+ro.f[i]+(p.f||[0,0,0,0,0,0])[i]),0,5));
+  const fl=isTurbo?baseFl.map((b,i)=>cl(r1(b+TURBO.flavorMod[i]),0,5)):baseFl;
 
-  const vTdsMod=V_TDS[vk]||0, rTdsMod=R_TDS[rk]||0, pTdsMod=P_TDS[pk]||0;
-  const [tLo,tHi]=m.tdsRange;
-  const adjLo=r1(tLo+vTdsMod+rTdsMod+pTdsMod);
-  const adjHi=r1(tHi+vTdsMod+rTdsMod+pTdsMod);
-
-  let gr=m.gr, grNote=GD[gr]||'';
-  if(m.esp&&isPress){gr='Fine–Medium-Fine';grNote='Pressurized basket is forgiving — aim slightly finer than table salt.';}
-
-  renderBrewResults({dose,water,ratio,mk,m,rk,pk,vk,v,p,ro,si,isPress,adv,tempStr,tC,dilW,gr,grNote,fl,userTds,adjLo,adjHi});
+  renderBrewResults({dose,water,ratio,mk,m,rk,pk,vk,v,p,ro,si,isPress,adv,tempStr,tC,dilW,
+    gr:grStr,grNote:grNoteStr,fl,userTds,adjLo,adjHi,isTurbo,timeStr});
 }
 
-function renderBrewResults({dose,water,ratio,mk,m,rk,pk,vk,v,p,ro,si,isPress,adv,tempStr,dilW,gr,grNote,fl,userTds,adjLo,adjHi}){
+function renderBrewResults({dose,water,ratio,mk,m,rk,pk,vk,v,p,ro,si,isPress,adv,tempStr,dilW,gr,grNote,fl,userTds,adjLo,adjHi,isTurbo,timeStr}){
   const rLabel=m.esp?`1 : ${ratio.toFixed(2)}`:`1 : ${ratio.toFixed(1)}`;
+  const dispTime=timeStr||m.ti;
+
+  // Turbo banner
+  const turboBanner=isTurbo?`<div class="info-box" style="background:linear-gradient(135deg,#fffbf0,#fff8e0);border-color:#e8c040;margin-bottom:.8rem">
+    <strong class="box-label" style="color:#907800">&#9889; Turbo Shot Recipe — ${dose}g → ${water}g in ${TURBO.time}</strong>
+    <strong>Ratio:</strong> 1:${ratio.toFixed(2)} &nbsp;·&nbsp; <strong>Grind:</strong> ${TURBO.grind} (${TURBO.grindNote.split('—')[0].trim()}) &nbsp;·&nbsp; <strong>Pressure:</strong> ${TURBO.pressure}<br>
+    <span style="font-size:.76rem;color:var(--text-muted)">Target TDS: ${adjLo}–${adjHi}% &nbsp;·&nbsp; Ideal extraction: ${TURBO.extRange[0]}–${TURBO.extRange[1]}% &nbsp;·&nbsp; Produces a brighter, cleaner, sweeter espresso with significantly lower bitterness.</span>
+  </div>`:'';
 
   // TDS box
   let tdsHtml='';
   if(userTds&&!isNaN(userTds)){
-    if(userTds<adjLo) tdsHtml=`<div class="info-box red-box"><strong class="box-label">&#9660; TDS Low — ${userTds}% (target ${adjLo}–${adjHi}%)</strong>Under-extracted or too dilute. Try: grind <strong>finer</strong>, increase dose by 0.5g, or check water temperature. For espresso, check for channelling.</div>`;
-    else if(userTds>adjHi) tdsHtml=`<div class="info-box amber-box"><strong class="box-label">&#9650; TDS High — ${userTds}% (target ${adjLo}–${adjHi}%)</strong>Over-extracted or too concentrated. Try: grind <strong>coarser</strong>, reduce dose, or add slightly more water.</div>`;
-    else tdsHtml=`<div class="info-box green-box"><strong class="box-label">&#10003; TDS On Target — ${userTds}% (${adjLo}–${adjHi}%)</strong>Ideal extraction zone for this combination. Excellent!</div>`;
+    if(userTds<adjLo) tdsHtml=`<div class="info-box red-box"><strong class="box-label">&#9660; TDS Low — ${userTds}% (target ${adjLo}–${adjHi}%)</strong>${isTurbo?'For turbo: try a slightly finer grind or ensure full saturation of the puck. Turbo shots are sensitive to channelling.':'Under-extracted or too dilute. Try: grind <strong>finer</strong>, increase dose by 0.5g, or check water temperature.'}</div>`;
+    else if(userTds>adjHi) tdsHtml=`<div class="info-box amber-box"><strong class="box-label">&#9650; TDS High — ${userTds}% (target ${adjLo}–${adjHi}%)</strong>${isTurbo?'For turbo: grind coarser or increase yield slightly. The turbo shot should flow very freely.':'Over-extracted or too concentrated. Try: grind <strong>coarser</strong>, reduce dose, or add slightly more water.'}</div>`;
+    else tdsHtml=`<div class="info-box green-box"><strong class="box-label">&#10003; TDS On Target — ${userTds}% (${adjLo}–${adjHi}%)</strong>Ideal extraction zone${isTurbo?' for a turbo shot':''}. Excellent!</div>`;
   } else {
-    tdsHtml=`<div class="info-box"><strong class="box-label">&#9711; TDS Reference — ${m.n} / ${v.n} / ${ro.l}</strong>Target TDS: <strong>${adjLo}–${adjHi}%</strong> &nbsp;&middot;&nbsp; Ideal Extraction: <strong>${m.extRange[0]}–${m.extRange[1]}%</strong><br><span style="font-size:.76rem;color:var(--text-muted)">Enter your refractometer reading in the panel to get personalised advice.</span></div>`;
+    tdsHtml=`<div class="info-box"><strong class="box-label">&#9711; TDS Reference — ${isTurbo?'Turbo Shot':m.n} / ${v.n} / ${ro.l}</strong>Target TDS: <strong>${adjLo}–${adjHi}%</strong> &nbsp;&middot;&nbsp; Ideal Extraction: <strong>${isTurbo?TURBO.extRange[0]+'–'+TURBO.extRange[1]:m.extRange[0]+'–'+m.extRange[1]}%</strong><br><span style="font-size:.76rem;color:var(--text-muted)">Enter your refractometer reading in the panel to get personalised advice.</span></div>`;
   }
 
   const amBox=m.am?`<div class="info-box"><strong class="box-label">Assembly</strong>Pull <strong>${water}g</strong> espresso, then add ~<strong>${dilW}ml</strong> hot water. For Long Black, pour shot INTO the water to preserve crema.</div>`:'';
-  let grindBox=m.esp?`<div class="info-box"><strong class="box-label">Grind Size Recommendation</strong>${isPress?'Pressurized basket: slightly finer than table salt. The dual-wall design is forgiving.':`Non-pressurized: <strong>${gr}</strong> (${grNote}). Precision matters — adjust in half-steps and weigh every shot.`}</div>`:'';
+
+  let grindBox='';
+  if(m.esp){
+    if(isTurbo){
+      grindBox=`<div class="info-box" style="border-left:3px solid #c0a000"><strong class="box-label" style="color:#907800">&#9889; Turbo Shot Grind Guide</strong>
+        Grind to <strong>${TURBO.grind}</strong> — ${TURBO.grindNote} Start at roughly 2–4 clicks coarser than your standard espresso setting on your grinder. The shot should flow like water and complete in <strong>8–14 seconds</strong>.<br>
+        <span style="font-size:.76rem;color:var(--text-muted)">If it flows in under 8 sec: grind slightly finer. Over 14 sec: grind coarser. The turbo shot is surprisingly forgiving once dialled in.</span>
+      </div>`;
+    } else {
+      grindBox=`<div class="info-box"><strong class="box-label">Grind Size Recommendation</strong>${isPress?'Pressurized basket: slightly finer than table salt. The dual-wall design is forgiving.':`Non-pressurized: <strong>${gr}</strong> (${grNote}). Precision matters — adjust in half-steps and weigh every shot.`}</div>`;
+    }
+  }
 
   let advBox='';
   if(m.esp&&adv){
-    const pt=isPress?'Standard Profile: Full 9-bar pressure start to finish. The pressurized basket manages resistance — no profiling needed.'
-      :rk==='light'||rk==='mediumLight'?'&#x2460; Pre-infuse 3–4 bar / 6–8 sec &#8594; &#x2461; Ramp to 9 bar / 4 sec &#8594; &#x2462; Hold 9 bar through ~20 sec &#8594; &#x2463; Decline to 6 bar. Lower pre-infusion coaxes sweetness from light roasts.'
-      :rk==='dark'?'&#x2460; Pre-infuse 6 bar / 4 sec &#8594; &#x2461; Ramp to 8 bar (not 9!) / 3 sec &#8594; &#x2462; Hold through 25 sec &#8594; &#x2463; Decline to 5 bar. Lower peak pressure prevents bitter over-extraction.'
-      :'&#x2460; Pre-infuse 4 bar / 5–6 sec &#8594; &#x2461; Ramp to 9 bar / 4 sec &#8594; &#x2462; Hold 9 bar through 25 sec &#8594; &#x2463; Ramp down to 6 bar / last 8 sec. Classic 9-bar profile with soft landing.';
-    advBox=`<div class="info-box"><strong class="box-label">Suggested Advanced Pressure Profile</strong>${pt}</div>`;
+    let pt;
+    if(isTurbo){
+      pt=`Full 9-bar pressure from first contact. <strong>No pre-infusion, no ramp.</strong> The coarse grind and high ratio mean the puck offers very low resistance — full pressure from start enables the fast 8–14 sec extraction. No pressure decline needed. Keep flow unrestricted.`;
+    } else {
+      pt=isPress?'Standard Profile: Full 9-bar pressure start to finish. The pressurized basket manages resistance — no profiling needed.'
+        :rk==='light'||rk==='mediumLight'?'&#x2460; Pre-infuse 3–4 bar / 6–8 sec &#8594; &#x2461; Ramp to 9 bar / 4 sec &#8594; &#x2462; Hold 9 bar through ~20 sec &#8594; &#x2463; Decline to 6 bar. Lower pre-infusion coaxes sweetness from light roasts.'
+        :rk==='dark'?'&#x2460; Pre-infuse 6 bar / 4 sec &#8594; &#x2461; Ramp to 8 bar (not 9!) / 3 sec &#8594; &#x2462; Hold through 25 sec &#8594; &#x2463; Decline to 5 bar. Lower peak pressure prevents bitter over-extraction.'
+        :'&#x2460; Pre-infuse 4 bar / 5–6 sec &#8594; &#x2461; Ramp to 9 bar / 4 sec &#8594; &#x2462; Hold 9 bar through 25 sec &#8594; &#x2463; Ramp down to 6 bar / last 8 sec. Classic 9-bar profile with soft landing.';
+    }
+    advBox=`<div class="info-box"><strong class="box-label">${isTurbo?'&#9889; Turbo Shot Pressure Profile':'Suggested Advanced Pressure Profile'}</strong>${pt}</div>`;
   }
 
   const [sw,ac,ar,bi,bo,fi]=fl;
-  const swD=sw<2?'subtle sweetness':sw<3?'mild sweetness':sw<4?'pleasant sweetness':sw<4.5?'prominent sweetness':'exceptional sweetness';
   const acD=ac<1.5?'very smooth, low acidity':ac<2.5?'mild, pleasant acidity':ac<3.5?'medium, lively acidity':ac<4.5?'bright, vibrant acidity':'intense, sparkling acidity';
   const boD=bo<1.5?'light, tea-like body':bo<2.5?'light-to-medium body':bo<3.5?'medium, balanced body':bo<4.5?'full, rich body':'very full, syrupy body';
-  const ov=(sw>=4&&ac>=4)?'complex and vibrant':sw>=4?'sweetly luxurious':ac>=4.5?'bright and electric':bo>=4.5?'full-bodied and lush':ar>=4.5?'aromatically stunning':'beautifully balanced';
+  const ov=isTurbo?'clean and vibrantly bright':(sw>=4&&ac>=4)?'complex and vibrant':sw>=4?'sweetly luxurious':ac>=4.5?'bright and electric':bo>=4.5?'full-bodied and lush':'beautifully balanced';
   const pno=(p.no||['balanced'])[0];
-  const ftxt=`Expect to taste: A ${ov} ${m.n} with prominent notes of <strong>${v.no[0]}</strong> and <strong>${v.no[1]||v.no[0]}</strong>${v.no[2]?`, with hints of <strong>${v.no[2]}</strong>`:''}. The ${pno} character from the processing delivers a <strong>${acD}</strong> and a <strong>${boD}</strong>.`;
+  const turboFlavorNote=isTurbo?' The turbo technique amplifies brightness and sweetness while dramatically reducing bitterness compared to a standard pull.':'';
+  const ftxt=`Expect to taste: A ${ov} ${isTurbo?'Turbo Shot Espresso':m.n} with prominent notes of <strong>${v.no[0]}</strong> and <strong>${v.no[1]||v.no[0]}</strong>${v.no[2]?`, with hints of <strong>${v.no[2]}</strong>`:''}. The ${pno} character from the processing delivers a <strong>${acD}</strong> and a <strong>${boD}</strong>.${turboFlavorNote}`;
 
-  const ratBox=m.esp?`<div class="rationale-box"><strong class="box-label">Expert Rationale</strong>This recipe balances the ${sw>=4?'sweetness':'character'} of ${v.n} (avg. SCA ${v.sca}) with a ${rk} roast and ${(P[pk]?.no||['balanced'])[0]} processing. The 1:${ratio.toFixed(2)} ratio targets a ${fi>=4?'rich, lingering':'concentrated, balanced'} shot. ${isPress?'Pressurized basket simplifies extraction.':'Non-pressurized basket rewards dialling-in.'}${adv?' Use the pressure profile above for maximum precision.':''}</div>`:'';
+  const ratBox=m.esp?`<div class="rationale-box"><strong class="box-label">Expert Rationale</strong>${isTurbo
+    ?`The Turbo Shot uses a 1:${ratio.toFixed(2)} ratio — nearly double the yield of a traditional espresso. The dramatically coarser grind means water encounters far less resistance, completing extraction in 8–14 seconds at full 9-bar pressure. Despite the speed, extraction yield (${TURBO.extRange[0]}–${TURBO.extRange[1]}%) actually meets or exceeds filter coffee standards. This produces a cleaner, sweeter cup because bitter compounds dissolve more slowly than sugars and acids. ${v.n} (SCA ${v.sca}) with ${rk} roast benefits particularly from this technique as it highlights its natural ${v.no[0]} and ${v.no[1]} character.`
+    :`This recipe balances the ${sw>=4?'sweetness':'character'} of ${v.n} (avg. SCA ${v.sca}) with a ${rk} roast and ${(P[pk]?.no||['balanced'])[0]} processing. The 1:${ratio.toFixed(2)} ratio targets a ${fi>=4?'rich, lingering':'concentrated, balanced'} shot. ${isPress?'Pressurized basket simplifies extraction.':'Non-pressurized basket rewards dialling-in.'}${adv?' Use the pressure profile above for maximum precision.':''}`
+  }</div>`:'';;
 
   document.getElementById('b-results').innerHTML=`
-    <div class="ratio-pill">Ratio <span>${rLabel}</span></div>
+    ${turboBanner}
+    <div class="ratio-pill">${isTurbo?'&#9889; Turbo ':''} Ratio <span>${rLabel}</span></div>
     <div class="rg">
       <div class="st"><div class="sv">${dose}g</div><div class="su">coffee</div><div class="sl">Dose</div></div>
       <div class="st"><div class="sv">${water}g</div><div class="su">${m.esp?'esp. yield':'water'}</div><div class="sl">Water / Yield</div></div>
-      <div class="st"><div class="sv" style="font-size:.95rem;padding-top:.2rem">${m.ti}</div><div class="su"></div><div class="sl">Brew Time</div></div>
+      <div class="st"><div class="sv" style="font-size:.95rem;padding-top:.2rem">${dispTime}</div><div class="su"></div><div class="sl">Brew Time</div></div>
       <div class="st"><div class="sv" style="font-size:.82rem;padding-top:.16rem">${gr}</div><div class="su"></div><div class="sl">Grind</div></div>
       <div class="st w2"><div class="sv" style="font-size:.78rem;padding-top:.14rem">${tempStr}</div><div class="su"></div><div class="sl">Water Temp</div></div>
     </div>
     ${tdsHtml}${amBox}${grindBox}${advBox}
     <div class="flavor-sect">
-      <div class="flavor-desc"><div class="fd-label">&#9749; Expected Flavor Profile</div>${ftxt}</div>
+      <div class="flavor-desc"><div class="fd-label">&#9749; Expected Flavor Profile${isTurbo?' — Turbo Shot':''}</div>${ftxt}</div>
       <div class="chart-wrap"><div class="chart-title">Flavor Profile — 0 to 5 scale</div><canvas id="rc-brew" width="230" height="230"></canvas></div>
     </div>
     ${ratBox}`;
 
   renderVarietyCard(vk,v,'b');
   drawRadar('rc-brew',fl,'#2d5a1b');
-  renderBrewSteps({dose,water,mk,m,rk,tempStr,gr,grNote,isPress,adv});
+  renderBrewSteps({dose,water,mk,m,rk,tempStr,gr,grNote,isPress,adv,isTurbo,timeStr:dispTime});
 }
 
 function renderVarietyCard(vk,v,pfx){
